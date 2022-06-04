@@ -28,15 +28,15 @@ class Hero(models.Model):
     """Model to store heroes and their stats, connected to player"""
 
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    player = models.ForeignKey(
-        Player,
-        on_delete=models.CASCADE,
-        related_name="heroes",
-        related_query_name="hero",
-    )
+    # player = models.ForeignKey(
+    #    Player,
+    #    on_delete=models.CASCADE,
+    #    related_name="heroes",
+    #    related_query_name="hero",
+    # )
     added = models.DateTimeField(auto_now_add=True)
 
-    type = models.CharField(blank=False, choices=HER0_TYPES, max_length=1)
+    type = models.CharField(blank=False, choices=HER0_TYPES, max_length=7)
     idle_img = models.ImageField(upload_to="uploads/idle", blank=False)
     attack_img = models.ImageField(upload_to="uploads/attack", blank=False)
     die_img = models.ImageField(upload_to="uploads/die", blank=False)
