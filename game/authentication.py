@@ -7,7 +7,9 @@ from .services.jwt import read_jwt
 class PlayerAuthentication(authentication.BaseAuthentication):
     def authenticate(self, request):
 
-        if "Authorization" not in request.headers or not (token := request.headers["Authorization"]):
+        if "Authorization" not in request.headers or not (
+            token := request.headers["Authorization"]
+        ):
             raise exceptions.AuthenticationFailed("No credentials provided.")
 
         t = read_jwt(token)

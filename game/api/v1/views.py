@@ -1,16 +1,29 @@
 from rest_framework import status
 
 from rest_framework.generics import GenericAPIView, UpdateAPIView
-from rest_framework.mixins import CreateModelMixin, RetrieveModelMixin, ListModelMixin
+from rest_framework.mixins import (
+    CreateModelMixin,
+    RetrieveModelMixin,
+    ListModelMixin,
+    DestroyModelMixin,
+    UpdateModelMixin,
+)
 from rest_framework.response import Response
 
 from game.authentication import PlayerAuthentication
 from game.models import Hero
-from game.serializers import CreateHeroSerializer, GetHeroSerializer, CreatePlayerView
+from game.api.v1.serializers import (
+    CreateHeroSerializer,
+    GetHeroSerializer,
+    CreatePlayerSerializer,
+    ListHeroSerializer,
+    DeckCreateSerializer,
+    GetDeckSerializer,
+)
 from game.services.jwt import sign_jwt
 
 
-class CreateHeroView(GenericAPIView, CreateModelMixin, ListModelMixin):
+class ListCreateHeroView(GenericAPIView, CreateModelMixin, ListModelMixin):
     authentication_classes = (PlayerAuthentication,)
 
     def perform_create(self, serializer):
@@ -27,7 +40,7 @@ class CreateHeroView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
     def get_serializer_class(self):
         if self.request.method == "GET":
-            return GetHeroSerializer
+            return ListHeroSerializer
         else:
             return CreateHeroSerializer
 
@@ -52,7 +65,7 @@ class RetrieveHeroView(RetrieveModelMixin, UpdateAPIView, GenericAPIView):
 
 
 class PlayerCreateView(GenericAPIView, CreateModelMixin):
-    serializer_class = CreatePlayerView
+    serializer_class = CreatePlayerSerializer
 
     def perform_create(self, serializer):
         return serializer.save()
@@ -65,4 +78,35 @@ class PlayerCreateView(GenericAPIView, CreateModelMixin):
         # TODO: add JTI to refresh token
         access_jwt = sign_jwt({"id": instance.id, "type": "access"}, t_life=3600)
         refresh_jwt = sign_jwt({"id": instance.id, "type": "refresh"})
-        return Response({"access_token": access_jwt, "refresh_token": refresh_jwt}, status=status.HTTP_201_CREATED)
+        return Response(
+            {"access_token": access_jwt, "refresh_token": refresh_jwt},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class DeckCreateView(GenericAPIView, CreateModelMixin):
+    serializer_class = DeckCreateSerializer
+    authentication_classes = (PlayerAuthentication,)
+
+    def perform_create(self, serializer):
+        return serializer.save(player=self.request.user)
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = self.perform_create(serializer)
+        heroes_list = ListHeroSerializer(instance.get_heroes(), many=True)
+        return Response(heroes_list.data, status=status.HTTP_201_CREATED)
+
+
+class RetireUpdateDeleteDeckView(
+    RetrieveHeroView, DestroyModelMixin, UpdateModelMixin, GenericAPIView
+):
+    lookup_field = "pk"
+
+    def get_serializer_class(self):
+        if self.request.method == "GET":
+            return GetDeckSerializer
+
+    def get(self, request, *args, **kwargs):
+        return self.retrieve(request, *args, **kwargs)

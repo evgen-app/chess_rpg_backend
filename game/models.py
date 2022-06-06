@@ -41,7 +41,10 @@ class Player(models.Model):
             hero.player = self
             hero.type = t
 
-            with open("/home/sanspie/Projects/chess_rpg_backend/media/dummy.jpg", "rb+") as file:
+            # TODO: create image pool to generate heroes (awaiting for designer)
+            with open(
+                "/home/sanspie/Projects/chess_rpg_backend/media/dummy.jpg", "rb+"
+            ) as file:
                 hero.idle_img = File(file, name="dummy.jpg")
                 hero.attack_img = File(file, name="dummy.jpg")
                 hero.die_img = File(file, name="dummy.jpg")
@@ -58,6 +61,8 @@ class Player(models.Model):
     class Meta:
         indexes = [models.Index(fields=["ton_wallet"])]
         ordering = ["-created"]
+
+        db_table = "player"
         verbose_name = "player"
         verbose_name_plural = "players"
 
@@ -65,7 +70,9 @@ class Player(models.Model):
 class Hero(models.Model):
     """Model to store heroes and their stats, connected to player"""
 
-    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    uuid = models.UUIDField(
+        default=uuid.uuid4, editable=False, unique=True, primary_key=True
+    )
     player = models.ForeignKey(
         Player,
         on_delete=models.CASCADE,
@@ -94,5 +101,47 @@ class Hero(models.Model):
     class Meta:
         indexes = [models.Index(fields=["uuid"])]
         ordering = ["-added"]
+
+        db_table = "hero"
         verbose_name = "hero"
         verbose_name_plural = "heroes"
+
+
+class Deck(models.Model):
+    player = models.ForeignKey(
+        Player,
+        on_delete=models.CASCADE,
+        related_name="decks",
+        related_query_name="deck",
+    )
+
+    def __str__(self):
+        return f"{self.player.name} deck"
+
+    def get_heroes(self):
+        return [x.hero for x in HeroInDeck.objects.filter(deck=self)]
+
+    class Meta:
+        db_table = "deck"
+        verbose_name = "deck"
+        verbose_name_plural = "decks"
+
+
+class HeroInDeck(models.Model):
+    deck = models.ForeignKey(
+        Deck,
+        on_delete=models.CASCADE,
+        related_name="hero_in_deck",
+        related_query_name="heroes",
+    )
+    hero = models.OneToOneField(
+        Hero,
+        on_delete=models.CASCADE,
+        related_name="hero_in_deck",
+        related_query_name="decks",
+    )
+
+    class Meta:
+        db_table = "hero_in_deck"
+        verbose_name = "Hero in deck"
+        verbose_name_plural = "Heroes in decks"
