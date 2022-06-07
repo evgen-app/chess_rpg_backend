@@ -116,10 +116,14 @@ class Deck(models.Model):
     )
 
     def __str__(self):
-        return f"{self.player.name} deck"
+        return f"{self.player.name}'s deck"
 
     def get_heroes(self):
         return [x.hero for x in HeroInDeck.objects.filter(deck=self)]
+
+    def heroes(self):
+        # added for better DRF view
+        return self.get_heroes()
 
     class Meta:
         db_table = "deck"

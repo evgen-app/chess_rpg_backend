@@ -56,7 +56,7 @@ class CreatePlayerSerializer(serializers.ModelSerializer):
         fields = ("ton_wallet", "name")
 
 
-class DeckCreateSerializer(serializers.ModelSerializer):
+class CreateDeckSerializer(serializers.ModelSerializer):
     hero_ids = serializers.ListSerializer(
         child=serializers.UUIDField(), min_length=16, max_length=16
     )
@@ -66,14 +66,17 @@ class DeckCreateSerializer(serializers.ModelSerializer):
         fields = ("hero_ids",)
 
     def validate_hero_ids(self, value):
-        for x in value:
-            if not (hero := Hero.objects.filter(uuid=x)):
-                raise ValidationError(f"Hero with uuid {x} doesn't exist")
+        if self.context["request"].method == "POST":
+            for x in value:
+                if not (hero := Hero.objects.filter(uuid=x)):
+                    raise ValidationError(f"Hero with uuid {x} doesn't exist")
 
-            if deck := HeroInDeck.objects.filter(hero=hero.first()):
-                raise ValidationError(
-                    f"Hero with uuid {x} is already in deck with id {deck.first().deck.id}"
-                )
+                if deck := HeroInDeck.objects.filter(hero=hero.first()):
+                    raise ValidationError(
+                        f"Hero with uuid {x} is already in deck with id {deck.first().deck.id}"
+                    )
+        elif self.context["request"].method in ["PUT", "PATCH"]:
+            print(value)
         return value
 
     def create(self, validated_data):
@@ -82,13 +85,22 @@ class DeckCreateSerializer(serializers.ModelSerializer):
             HeroInDeck.objects.create(hero_id=x, deck=deck)
         return deck
 
+    def update(self, instance, validated_data):
+        print(instance, validated_data)
+        return instance
+
+
+
+class GetPlayerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Player
+        fields = ("id", "name")
+
 
 class GetDeckSerializer(serializers.ModelSerializer):
+    player = GetPlayerSerializer()
     heroes = ListHeroSerializer(many=True)
 
     class Meta:
         model = Deck
-        fields = ("player_uuid", "heroes")
-
-    def get_heroes(self, val):
-        print(val)
+        fields = ("player", "heroes")

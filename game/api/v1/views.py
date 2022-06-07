@@ -11,13 +11,13 @@ from rest_framework.mixins import (
 from rest_framework.response import Response
 
 from game.authentication import PlayerAuthentication
-from game.models import Hero
+from game.models import Hero, Deck
 from game.api.v1.serializers import (
     CreateHeroSerializer,
     GetHeroSerializer,
     CreatePlayerSerializer,
     ListHeroSerializer,
-    DeckCreateSerializer,
+    CreateDeckSerializer,
     GetDeckSerializer,
 )
 from game.services.jwt import sign_jwt
@@ -85,7 +85,7 @@ class PlayerCreateView(GenericAPIView, CreateModelMixin):
 
 
 class DeckCreateView(GenericAPIView, CreateModelMixin):
-    serializer_class = DeckCreateSerializer
+    serializer_class = CreateDeckSerializer
     authentication_classes = (PlayerAuthentication,)
 
     def perform_create(self, serializer):
@@ -102,11 +102,23 @@ class DeckCreateView(GenericAPIView, CreateModelMixin):
 class RetireUpdateDeleteDeckView(
     RetrieveHeroView, DestroyModelMixin, UpdateModelMixin, GenericAPIView
 ):
-    lookup_field = "pk"
+    lookup_field = "id"
+    queryset = Deck.objects.all()
 
     def get_serializer_class(self):
         if self.request.method == "GET":
             return GetDeckSerializer
+        else:
+            return CreateDeckSerializer
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)

@@ -14,6 +14,6 @@ urlpatterns = [
     path("v1/player/", PlayerCreateView.as_view(), name="player_create_api"),
     path("v1/deck/", DeckCreateView.as_view(), name="deck_create_api"),
     path(
-        "v1/deck/<int:pk>", RetireUpdateDeleteDeckView.as_view(), name="deck_retire_api"
+        "v1/deck/<int:id>", RetireUpdateDeleteDeckView.as_view(), name="deck_retire_api"
     ),
 ]
