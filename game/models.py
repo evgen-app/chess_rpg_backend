@@ -29,7 +29,9 @@ class Player(models.Model):
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
+        """saves user and creates deck for him with 16 heroes"""
         super(Player, self).save()
+        deck = Deck.objects.create(player=self)
         types = (
             ["ARCHER" for _ in range(4)]
             + ["WARRIOR" for _ in range(6)]
@@ -54,6 +56,10 @@ class Player(models.Model):
                 hero.speed = random.randint(0, 10)
 
                 hero.save()
+                HeroInDeck.objects.create(deck=deck, hero=hero)
+
+    def get_last_deck(self):
+        return Deck.objects.filter(player=self).last()
 
     def __str__(self):
         return self.name

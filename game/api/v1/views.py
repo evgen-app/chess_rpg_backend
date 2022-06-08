@@ -79,7 +79,11 @@ class PlayerCreateView(GenericAPIView, CreateModelMixin):
         access_jwt = sign_jwt({"id": instance.id, "type": "access"}, t_life=3600)
         refresh_jwt = sign_jwt({"id": instance.id, "type": "refresh"})
         return Response(
-            {"access_token": access_jwt, "refresh_token": refresh_jwt},
+            {
+                "access_token": access_jwt,
+                "refresh_token": refresh_jwt,
+                "deck_id": instance.get_last_deck().id,
+            },
             status=status.HTTP_201_CREATED,
         )
 
@@ -96,6 +100,7 @@ class DeckCreateView(GenericAPIView, CreateModelMixin):
         serializer.is_valid(raise_exception=True)
         instance = self.perform_create(serializer)
         heroes_list = ListHeroSerializer(instance.get_heroes(), many=True)
+        heroes_list.data["deck_id"] = instance.id
         return Response(heroes_list.data, status=status.HTTP_201_CREATED)
 
 
@@ -115,10 +120,30 @@ class RetireUpdateDeleteDeckView(
         return self.retrieve(request, *args, **kwargs)
 
     def put(self, request, *args, **kwargs):
+        if not self._check_user_identity(request.user.id, kwargs["id"]):
+            return Response(
+                "Attempt to change another user's deck",
+                status=status.HTTP_403_FORBIDDEN,
+            )
         return self.update(request, *args, **kwargs)
 
     def patch(self, request, *args, **kwargs):
+        if not self._check_user_identity(request.user.id, kwargs["id"]):
+            return Response(
+                "Attempt to change another user's deck",
+                status=status.HTTP_403_FORBIDDEN,
+            )
         return self.partial_update(request, *args, **kwargs)
 
     def delete(self, request, *args, **kwargs):
+        if not self._check_user_identity(request.user.id, kwargs["id"]):
+            return Response(
+                "Attempt to delete another user's deck",
+                status=status.HTTP_403_FORBIDDEN,
+            )
         return self.destroy(request, *args, **kwargs)
+
+    def _check_user_identity(self, user_id, deck_id) -> bool:
+        return deck_id in list(
+            Deck.objects.filter(player_id=user_id).values_list("id", flat=True)
+        )

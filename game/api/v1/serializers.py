@@ -90,7 +90,6 @@ class CreateDeckSerializer(serializers.ModelSerializer):
         return instance
 
 
-
 class GetPlayerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
