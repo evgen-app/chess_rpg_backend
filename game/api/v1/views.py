@@ -119,31 +119,35 @@ class RetireUpdateDeleteDeckView(
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
 
-    def put(self, request, *args, **kwargs):
-        if not self._check_user_identity(request.user.id, kwargs["id"]):
-            return Response(
-                "Attempt to change another user's deck",
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        return self.update(request, *args, **kwargs)
+    def perform_update(self, serializer):
+        return serializer.update(self.get_object(), self.request.data)
 
-    def patch(self, request, *args, **kwargs):
-        if not self._check_user_identity(request.user.id, kwargs["id"]):
+    def put(self, request, *args, **kwargs):
+        if not self._check_user_identity(kwargs["id"]):
             return Response(
                 "Attempt to change another user's deck",
                 status=status.HTTP_403_FORBIDDEN,
             )
-        return self.partial_update(request, *args, **kwargs)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        instance = self.perform_update(serializer)
+        heroes_list = ListHeroSerializer(instance.get_heroes(), many=True)
+        return Response(heroes_list.data, status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
-        if not self._check_user_identity(request.user.id, kwargs["id"]):
+        if not self._check_user_identity(kwargs["id"]):
             return Response(
                 "Attempt to delete another user's deck",
                 status=status.HTTP_403_FORBIDDEN,
             )
-        return self.destroy(request, *args, **kwargs)
+        self.destroy(request, *args, **kwargs)
+        return Response(
+            f"Destroyed deck with id {kwargs['id']}", status=status.HTTP_200_OK
+        )
 
-    def _check_user_identity(self, user_id, deck_id) -> bool:
+    def _check_user_identity(self, deck_id) -> bool:
         return deck_id in list(
-            Deck.objects.filter(player_id=user_id).values_list("id", flat=True)
+            Deck.objects.filter(player_id=self.request.user.id).values_list(
+                "id", flat=True
+            )
         )

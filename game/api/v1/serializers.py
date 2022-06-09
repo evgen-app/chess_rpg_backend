@@ -1,5 +1,3 @@
-from abc import ABC
-
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -66,17 +64,24 @@ class CreateDeckSerializer(serializers.ModelSerializer):
         fields = ("hero_ids",)
 
     def validate_hero_ids(self, value):
-        if self.context["request"].method == "POST":
-            for x in value:
-                if not (hero := Hero.objects.filter(uuid=x)):
-                    raise ValidationError(f"Hero with uuid {x} doesn't exist")
+        if len(set(value)) != 16:
+            raise ValidationError("Some of the uuids are not unique")
 
+        for x in value:
+            if not (hero := Hero.objects.filter(uuid=x)):
+                raise ValidationError(f"Hero with uuid {x} doesn't exist")
+
+            if hero.first().player.id != self.context["request"].user.id:
+                raise ValidationError(
+                    f"Attempt to manipulate player with id {hero.first().player.id} hero"
+                )
+
+            if self.context["request"].method in ["POST"]:
                 if deck := HeroInDeck.objects.filter(hero=hero.first()):
                     raise ValidationError(
                         f"Hero with uuid {x} is already in deck with id {deck.first().deck.id}"
                     )
-        elif self.context["request"].method in ["PUT", "PATCH"]:
-            print(value)
+
         return value
 
     def create(self, validated_data):
@@ -86,7 +91,12 @@ class CreateDeckSerializer(serializers.ModelSerializer):
         return deck
 
     def update(self, instance, validated_data):
-        print(instance, validated_data)
+        for x in instance.get_heroes():
+            HeroInDeck.objects.get(hero=x).delete()
+
+        for x in validated_data["hero_ids"]:
+            HeroInDeck.objects.create(hero_id=x, deck=instance)
+
         return instance
 
 
