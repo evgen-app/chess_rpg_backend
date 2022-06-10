@@ -19,6 +19,7 @@ from game.api.v1.serializers import (
     ListHeroSerializer,
     CreateDeckSerializer,
     GetDeckSerializer,
+    ObtainTokenPairSerializer,
 )
 from game.services.jwt import sign_jwt
 
@@ -75,9 +76,8 @@ class PlayerCreateView(GenericAPIView, CreateModelMixin):
         serializer.is_valid(raise_exception=True)
         instance = self.perform_create(serializer)
 
-        # TODO: add JTI to refresh token
         access_jwt = sign_jwt({"id": instance.id, "type": "access"}, t_life=3600)
-        refresh_jwt = sign_jwt({"id": instance.id, "type": "refresh"})
+        refresh_jwt = sign_jwt({"jit": instance.get_auth_session(), "type": "refresh"})
         return Response(
             {
                 "access_token": access_jwt,
@@ -151,3 +151,13 @@ class RetireUpdateDeleteDeckView(
                 "id", flat=True
             )
         )
+
+
+class RefreshAuthKey(GenericAPIView):
+    serializer_class = ObtainTokenPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        access_jwt = sign_jwt({"id": serializer.player_id, "type": "access"}, t_life=3600)
+        return Response({"access_token": access_jwt}, status=status.HTTP_200_OK)

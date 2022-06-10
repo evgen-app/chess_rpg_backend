@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from game.models import Hero, Player, HeroInDeck, Deck
+from game.models import Hero, Player, HeroInDeck, Deck, PlayerAuthSession
+from game.services.jwt import read_jwt
 
 
 class CreateHeroSerializer(serializers.ModelSerializer):
@@ -113,3 +114,29 @@ class GetDeckSerializer(serializers.ModelSerializer):
     class Meta:
         model = Deck
         fields = ("player", "heroes")
+
+
+class ObtainTokenPairSerializer(serializers.Serializer):
+    refresh_token = serializers.CharField(max_length=300)
+
+    def __init__(self, instance=None, data=None, **kwargs):
+        super().__init__(instance, data, **kwargs)
+        self.player_id = None
+
+    def validate_refresh_token(self, value):
+        payload = read_jwt(value)
+        if not payload:
+            raise ValidationError("Token is incorrect or expired")
+
+        if "jit" not in payload:
+            raise ValidationError("Token is incorrect")
+
+        jit = payload["jit"]
+
+        try:
+            session = PlayerAuthSession.objects.get(jit=jit)
+        except PlayerAuthSession.DoesNotExist:
+            return ValidationError("Incorrect user session")
+
+        self.player_id = session.player.id
+        return value

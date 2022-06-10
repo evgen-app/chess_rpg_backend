@@ -11,6 +11,8 @@ from django.core.validators import (
 from django.db import models
 from django.conf import settings
 
+from common.generators import generate_charset
+
 HER0_TYPES = [("WIZARD", "wizard"), ("ARCHER", "archer"), ("WARRIOR", "warrior")]
 
 
@@ -31,6 +33,7 @@ class Player(models.Model):
     ):
         """saves user and creates deck for him with 16 heroes"""
         super(Player, self).save()
+        PlayerAuthSession.objects.create(player=self)
         deck = Deck.objects.create(player=self)
         types = (
             ["ARCHER" for _ in range(4)]
@@ -60,6 +63,9 @@ class Player(models.Model):
 
     def get_last_deck(self):
         return Deck.objects.filter(player=self).last()
+
+    def get_auth_session(self):
+        return PlayerAuthSession.objects.get(player=self).jit
 
     def __str__(self):
         return self.name
@@ -155,3 +161,10 @@ class HeroInDeck(models.Model):
         db_table = "hero_in_deck"
         verbose_name = "Hero in deck"
         verbose_name_plural = "Heroes in decks"
+
+
+class PlayerAuthSession(models.Model):
+    player = models.OneToOneField(
+        Player, unique_for_month=True, on_delete=models.CASCADE
+    )
+    jit = models.CharField(max_length=30, default=generate_charset(30))

@@ -43,7 +43,3 @@ def read_jwt(token: str) -> dict | bool:
     payload.pop("exp", None)
 
     return payload
-
-
-def generate_refresh_token(payload: dict) -> str:
-    return sign_jwt(payload)

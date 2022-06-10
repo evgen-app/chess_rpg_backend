@@ -1,3 +1,4 @@
+from jwt import DecodeError
 from rest_framework import authentication
 from rest_framework import exceptions
 from .models import Player
@@ -12,12 +13,19 @@ class PlayerAuthentication(authentication.BaseAuthentication):
         ):
             raise exceptions.AuthenticationFailed("No credentials provided.")
 
-        t = read_jwt(token)
+        try:
+            t = read_jwt(token)
+        except DecodeError:
+            raise exceptions.AuthenticationFailed("Token is incorrect")
+
         if not t:
             raise exceptions.AuthenticationFailed("Token is incorrect of expired")
 
-        if "id" not in t:
+        if "id" not in t and "type" not in t:
             raise exceptions.AuthenticationFailed("No user data")
+
+        if t["type"] != "access":
+            raise exceptions.AuthenticationFailed("Incorrect token type")
 
         try:
             user = Player.objects.get(id=int(t["id"]))
