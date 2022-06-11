@@ -13,7 +13,13 @@ from django.conf import settings
 
 from common.generators import generate_charset
 
-HER0_TYPES = [("WIZARD", "wizard"), ("ARCHER", "archer"), ("WARRIOR", "warrior")]
+HER0_TYPES = [
+    ("WIZARD", "wizard"),
+    ("ARCHER", "archer"),
+    ("WARRIOR", "warrior"),
+    ("KING", "king"),
+]
+HER0_IMAGE_TYPES = [("DIE", "die"), ("IDLE", "idle"), ("ATTACK", "attack")]
 
 
 class Player(models.Model):
@@ -36,30 +42,23 @@ class Player(models.Model):
         PlayerAuthSession.objects.create(player=self)
         deck = Deck.objects.create(player=self)
         types = (
-            ["ARCHER" for _ in range(4)]
+            ["KING"]
+            + ["ARCHER" for _ in range(4)]
             + ["WARRIOR" for _ in range(6)]
             + ["WIZARD" for _ in range(2)]
-            + [random.choice(HER0_TYPES)[0] for _ in range(4)]
+            + [random.choice(HER0_TYPES[:3])[0] for _ in range(3)]
         )
         for t in types:
             hero = Hero()
             hero.player = self
             hero.type = t
 
-            # TODO: create image pool to generate heroes (awaiting for designer)
-            with open(
-                "/home/sanspie/Projects/chess_rpg_backend/media/dummy.jpg", "rb+"
-            ) as file:
-                hero.idle_img = File(file, name="dummy.jpg")
-                hero.attack_img = File(file, name="dummy.jpg")
-                hero.die_img = File(file, name="dummy.jpg")
+            hero.health = random.randint(0, 10)
+            hero.attack = random.randint(0, 10)
+            hero.speed = random.randint(0, 10)
 
-                hero.health = random.randint(0, 10)
-                hero.attack = random.randint(0, 10)
-                hero.speed = random.randint(0, 10)
-
-                hero.save()
-                HeroInDeck.objects.create(deck=deck, hero=hero)
+            hero.save()
+            HeroInDeck.objects.create(deck=deck, hero=hero)
 
     def get_last_deck(self):
         return Deck.objects.filter(player=self).last()
@@ -94,9 +93,15 @@ class Hero(models.Model):
     added = models.DateTimeField(auto_now_add=True)
 
     type = models.CharField(blank=False, choices=HER0_TYPES, max_length=7)
-    idle_img = models.ImageField(upload_to="uploads/idle", blank=False)
-    attack_img = models.ImageField(upload_to="uploads/attack", blank=False)
-    die_img = models.ImageField(upload_to="uploads/die", blank=False)
+    idle_img_f = models.ForeignKey(
+        "HeroImageSet", on_delete=models.CASCADE, related_name="idle_image_fkey"
+    )
+    attack_img_f = models.ForeignKey(
+        "HeroImageSet", on_delete=models.CASCADE, related_name="attack_image_fkey"
+    )
+    die_img_f = models.ForeignKey(
+        "HeroImageSet", on_delete=models.CASCADE, related_name="die_image_fkey"
+    )
     health = models.IntegerField(
         validators=[MinValueValidator(0), MaxValueValidator(10)], blank=False
     )
@@ -107,8 +112,31 @@ class Hero(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(10)], blank=False
     )
 
+    def idle_img(self):
+        return self.idle_img_f.image.url
+
+    def attack_img(self):
+        return self.attack_img_f.image.url
+
+    def die_img(self):
+        return self.die_img_f.image.url
+
     def __str__(self):
         return f"{self.type} {self.player.name}"
+
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
+        self.idle_img_f = random.choice(
+            [x for x in HeroImageSet.objects.filter(hero_type=self.type, type="IDLE")]
+        )
+        self.attack_img_f = random.choice(
+            [x for x in HeroImageSet.objects.filter(hero_type=self.type, type="ATTACK")]
+        )
+        self.die_img_f = random.choice(
+            [x for x in HeroImageSet.objects.filter(hero_type=self.type, type="DIE")]
+        )
+        super(Hero, self).save()
 
     class Meta:
         indexes = [models.Index(fields=["uuid"])]
@@ -117,6 +145,15 @@ class Hero(models.Model):
         db_table = "hero"
         verbose_name = "hero"
         verbose_name_plural = "heroes"
+
+
+class HeroImageSet(models.Model):
+    type = models.CharField(max_length=10, choices=HER0_IMAGE_TYPES)
+    hero_type = models.CharField(blank=False, choices=HER0_TYPES, max_length=7)
+    image = models.ImageField(upload_to="uploads/")
+
+    def __str__(self):
+        return f"{self.hero_type} {self.type} image"
 
 
 class Deck(models.Model):

@@ -51,9 +51,13 @@ class ListCreateHeroView(GenericAPIView, CreateModelMixin, ListModelMixin):
 
 class RetrieveHeroView(RetrieveModelMixin, UpdateAPIView, GenericAPIView):
     serializer_class = GetHeroSerializer
-    authentication_classes = (PlayerAuthentication,)
     lookup_field = "uuid"
     queryset = Hero.objects.all()
+
+    def get_authenticators(self):
+        if self.request.method != "GET":
+            self.authentication_classes = [PlayerAuthentication]
+        return [auth() for auth in self.authentication_classes]
 
     def get(self, request, *args, **kwargs):
         return self.retrieve(request, *args, **kwargs)
@@ -159,5 +163,7 @@ class RefreshAuthKey(GenericAPIView):
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        access_jwt = sign_jwt({"id": serializer.player_id, "type": "access"}, t_life=3600)
+        access_jwt = sign_jwt(
+            {"id": serializer.player_id, "type": "access"}, t_life=3600
+        )
         return Response({"access_token": access_jwt}, status=status.HTTP_200_OK)

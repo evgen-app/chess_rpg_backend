@@ -10,9 +10,6 @@ class CreateHeroSerializer(serializers.ModelSerializer):
         model = Hero
         fields = (
             "type",
-            "idle_img",
-            "attack_img",
-            "die_img",
             "health",
             "attack",
             "speed",
