@@ -31,6 +31,7 @@ class QueueConsumer(AsyncWebsocketConsumer):
                     {"type": "ERROR", "message": "data is not JSON serializable"}
                 )
             )
+
         if data:
             # TODO move to external function/class
             if "type" not in data:
@@ -61,6 +62,14 @@ class QueueConsumer(AsyncWebsocketConsumer):
                             )
                         if deck:
                             await self.queue_connector(deck)
+                            await self.send(
+                                text_data=json.dumps(
+                                    {
+                                        "type": "INFO",
+                                        "message": f"added to queue deck with score {self.scope['score']}",
+                                    }
+                                )
+                            )
                         else:
                             await self.send(
                                 text_data=json.dumps(
@@ -84,15 +93,15 @@ class QueueConsumer(AsyncWebsocketConsumer):
     @sync_to_async
     def queue_connector(self, deck):
         try:
-            queue = PlayerInQueue.objects.get(
-                player_id=self.scope["player"]
-            ).score = deck.score()
+            queue = PlayerInQueue.objects.get(player_id=self.scope["player"])
+            queue.score = deck.score()
         except PlayerInQueue.DoesNotExist:
             queue = PlayerInQueue.objects.create(
                 player_id=self.scope["player"], score=deck.score()
             )
 
-        self.scope["queue"] = queue
+        self.scope["queue"] = queue.id
+        self.scope["score"] = queue.score
 
     async def chat_message(self, event):
         pass

@@ -207,4 +207,15 @@ class PlayerAuthSession(models.Model):
     player = models.OneToOneField(
         Player, unique_for_month=True, on_delete=models.CASCADE
     )
-    jit = models.CharField(max_length=30, default=generate_charset(30))
+    jit = models.CharField(max_length=30)
+
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
+        self.jit = generate_charset(30)
+        super(PlayerAuthSession, self).save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )

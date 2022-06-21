@@ -6,7 +6,7 @@ from game.models import Player
 
 class PlayerInQueue(models.Model):
     # TODO use redis for storing
-    player = models.ForeignKey(Player, unique=True, on_delete=models.CASCADE)
+    player = models.OneToOneField(Player, unique=True, on_delete=models.CASCADE)
     score = models.IntegerField()
 
     def __str__(self):
