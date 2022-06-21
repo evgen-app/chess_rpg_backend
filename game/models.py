@@ -103,13 +103,13 @@ class Hero(models.Model):
         "HeroImageSet", on_delete=models.CASCADE, related_name="die_image_fkey"
     )
     health = models.IntegerField(
-        validators=[MinValueValidator(0), MaxValueValidator(10)], blank=False
+        validators=[MinValueValidator(1), MaxValueValidator(10)], blank=False
     )
     attack = models.IntegerField(
-        validators=[MinValueValidator(0), MaxValueValidator(10)], blank=False
+        validators=[MinValueValidator(1), MaxValueValidator(10)], blank=False
     )
     speed = models.IntegerField(
-        validators=[MinValueValidator(0), MaxValueValidator(10)], blank=False
+        validators=[MinValueValidator(1), MaxValueValidator(10)], blank=False
     )
 
     def idle_img(self):
