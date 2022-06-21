@@ -4,7 +4,7 @@ from django.db import models
 from game.models import Player
 
 
-class PlayerInQue(models.Model):
+class PlayerInQueue(models.Model):
     # TODO use redis for storing
     player = models.ForeignKey(Player, unique=True, on_delete=models.CASCADE)
     score = models.IntegerField()

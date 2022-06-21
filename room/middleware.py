@@ -6,17 +6,21 @@ from game.services.jwt import read_jwt
 
 
 @database_sync_to_async
-def get_player(jwt):
+def get_player(headers):
+    # WARNING headers type is bytes
+    if b"authorization" not in headers or not headers[b"authorization"]:
+        return False
+
+    jwt = headers[b"authorization"].decode()
     payload = read_jwt(jwt)
-    if not payload:
-        raise PermissionDenied
-    try:
-        return Player.objects.get(id=payload)
-    except User.DoesNotExist:
-        return AnonymousUser()
+
+    if not payload or "id" not in payload:
+        return False
+
+    return payload["id"]
 
 
-class QueryAuthMiddleware:
+class HeaderAuthMiddleware:
     """Custom middleware to read user auth token from string."""
 
     def __init__(self, app):
@@ -24,9 +28,6 @@ class QueryAuthMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        # Look up user from query string (you should also do things like
-        # checking if it is a valid user ID, or if scope["user"] is already
-        # populated).
-        scope["user"] = await get_user(int(scope["query_string"]))
+        scope["player"] = await get_player(dict(scope["headers"]))
 
         return await self.app(scope, receive, send)

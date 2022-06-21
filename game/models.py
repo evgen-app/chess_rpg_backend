@@ -174,6 +174,9 @@ class Deck(models.Model):
         # added for better DRF view
         return self.get_heroes()
 
+    def score(self):
+        return sum([x.attack + x.health + x.speed for x in self.get_heroes()])
+
     class Meta:
         db_table = "deck"
         verbose_name = "deck"
