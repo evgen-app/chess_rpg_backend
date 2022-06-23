@@ -1,13 +1,18 @@
 import json
 
-from asgiref.sync import sync_to_async
+from asgiref.sync import sync_to_async, async_to_sync
 from channels.generic.websocket import AsyncWebsocketConsumer
+from channels.layers import get_channel_layer
 
 from game.models import Deck
 from room.models import PlayerInQueue
 
 
 class QueueConsumer(AsyncWebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(args, kwargs)
+        self.room_group_name = None
+
     async def connect(self):
         self.room_group_name = "queue"
 
@@ -17,6 +22,7 @@ class QueueConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
     async def disconnect(self, close_code):
+        await self.delete_user_in_queue()
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     # Receive message from WebSocket
@@ -61,6 +67,7 @@ class QueueConsumer(AsyncWebsocketConsumer):
                                 )
                             )
                         if deck:
+                            # add to que, start finding players
                             await self.queue_connector(deck)
                             await self.send(
                                 text_data=json.dumps(
@@ -70,6 +77,37 @@ class QueueConsumer(AsyncWebsocketConsumer):
                                     }
                                 )
                             )
+                            opponent = await self.find_user_by_score()
+
+                            if not opponent:
+                                await self.send(
+                                    text_data=json.dumps(
+                                        {
+                                            "type": "INFO",
+                                            "message": "no user found, awaiting in queue",
+                                        }
+                                    )
+                                )
+                            else:
+                                # add to group and send message that opponent found to players
+                                channel_layer = get_channel_layer()
+
+                                await channel_layer.send(
+                                    opponent[0],
+                                    {
+                                        "type": "info",
+                                        "message": f"user found, with score {self.scope['score']}",
+                                    },
+                                )
+
+                                await self.send(
+                                    text_data=json.dumps(
+                                        {
+                                            "type": "INFO",
+                                            "message": f"user found, with score {opponent[1]}",
+                                        }
+                                    )
+                                )
                         else:
                             await self.send(
                                 text_data=json.dumps(
@@ -79,6 +117,23 @@ class QueueConsumer(AsyncWebsocketConsumer):
                                     }
                                 )
                             )
+
+    @sync_to_async
+    def delete_user_in_queue(self):
+        try:
+            PlayerInQueue.objects.get(player_id=self.scope["player"]).delete()
+        except PlayerInQueue.DoesNotExist:
+            return False
+
+    @sync_to_async
+    def find_user_by_score(self):
+        s_min = self.scope["score"] * 0.95
+        s_max = self.scope["score"] * 1.05
+        for el in PlayerInQueue.objects.all():
+            if el.player_id != self.scope["player"]:
+                if s_min <= el.score <= s_max:
+                    return el.channel_name, el.score
+        return False
 
     @sync_to_async
     def check_user_deck(self, deck_id: int):
@@ -95,16 +150,22 @@ class QueueConsumer(AsyncWebsocketConsumer):
         try:
             queue = PlayerInQueue.objects.get(player_id=self.scope["player"])
             queue.score = deck.score()
+            queue.channel_name = self.channel_name
+            queue.save()
+
         except PlayerInQueue.DoesNotExist:
             queue = PlayerInQueue.objects.create(
-                player_id=self.scope["player"], score=deck.score()
+                player_id=self.scope["player"],
+                score=deck.score(),
+                channel_name=self.channel_name,
             )
 
         self.scope["queue"] = queue.id
         self.scope["score"] = queue.score
 
-    async def chat_message(self, event):
-        pass
+    async def info(self, event):
+        message = event["message"]
+        await self.send(text_data=json.dumps({"type": "INFO", "message": message}))
 
     async def check_origin(self):
         if not self.scope["player"]:
@@ -124,7 +185,7 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-        self.room_group_name = "room_%s" % self.room_name
+        self.room_group_name = f"room_{self.room_name}"
 
         # Join room group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
@@ -137,7 +198,6 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
     # Receive message from WebSocket
     async def receive(self, text_data):
-        print(text_data)
         # Send message to room group
         await self.channel_layer.group_send(
             self.room_group_name,
