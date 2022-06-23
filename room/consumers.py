@@ -1,11 +1,12 @@
 import json
 
-from asgiref.sync import sync_to_async, async_to_sync
+from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 
 from game.models import Deck
 from room.models import PlayerInQueue
+from room.services.room_create import create_room
 
 
 class QueueConsumer(AsyncWebsocketConsumer):
@@ -91,12 +92,21 @@ class QueueConsumer(AsyncWebsocketConsumer):
                             else:
                                 # add to group and send message that opponent found to players
                                 channel_layer = get_channel_layer()
+                                room = await create_room(
+                                    deck_id_1=self.scope["deck"],
+                                    player_id_1=self.scope["player"],
+                                    player_score_1=self.scope["score"],
+                                    deck_id_2=opponent[2],
+                                    player_id_2=opponent[3],
+                                    player_score_2=opponent[1],
+                                )
 
                                 await channel_layer.send(
                                     opponent[0],
                                     {
                                         "type": "info",
                                         "message": f"user found, with score {self.scope['score']}",
+                                        "room": room,
                                     },
                                 )
 
@@ -105,6 +115,7 @@ class QueueConsumer(AsyncWebsocketConsumer):
                                         {
                                             "type": "INFO",
                                             "message": f"user found, with score {opponent[1]}",
+                                            "room": room,
                                         }
                                     )
                                 )
@@ -132,7 +143,7 @@ class QueueConsumer(AsyncWebsocketConsumer):
         for el in PlayerInQueue.objects.all():
             if el.player_id != self.scope["player"]:
                 if s_min <= el.score <= s_max:
-                    return el.channel_name, el.score
+                    return el.channel_name, el.score, el.deck.id, el.player.id
         return False
 
     @sync_to_async
@@ -156,16 +167,22 @@ class QueueConsumer(AsyncWebsocketConsumer):
         except PlayerInQueue.DoesNotExist:
             queue = PlayerInQueue.objects.create(
                 player_id=self.scope["player"],
+                deck=deck,
                 score=deck.score(),
                 channel_name=self.channel_name,
             )
 
         self.scope["queue"] = queue.id
+        self.scope["deck"] = deck.id
         self.scope["score"] = queue.score
 
     async def info(self, event):
         message = event["message"]
-        await self.send(text_data=json.dumps({"type": "INFO", "message": message}))
+        msg = {"type": "INFO", "message": message}
+        if "room" in event:
+            msg["room"] = event["room"]
+
+        await self.send(text_data=json.dumps(msg))
 
     async def check_origin(self):
         if not self.scope["player"]:
