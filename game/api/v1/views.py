@@ -80,8 +80,8 @@ class PlayerCreateView(GenericAPIView, CreateModelMixin):
         serializer.is_valid(raise_exception=True)
         instance = self.perform_create(serializer)
 
-        access_jwt = sign_jwt({"id": instance.id, "type": "access"}, t_life=3600)
-        refresh_jwt = sign_jwt({"jit": instance.get_auth_session(), "type": "refresh"})
+        access_jwt = instance.get_access_token()
+        refresh_jwt = instance.get_refresh_token()
         return Response(
             {
                 "access_token": access_jwt,

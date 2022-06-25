@@ -12,6 +12,7 @@ from django.db import models
 from django.conf import settings
 
 from common.generators import generate_charset
+from game.services.jwt import sign_jwt
 
 HER0_TYPES = [
     ("WIZARD", "wizard"),
@@ -65,6 +66,12 @@ class Player(models.Model):
 
     def get_auth_session(self):
         return PlayerAuthSession.objects.get(player=self).jit
+
+    def get_refresh_token(self):
+        return sign_jwt({"jit": self.get_auth_session(), "type": "refresh"})
+
+    def get_access_token(self):
+        return sign_jwt({"id": self.id, "type": "access"}, t_life=3600)
 
     def __str__(self):
         return self.name

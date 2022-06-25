@@ -5,8 +5,10 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 
 from game.models import Deck
-from room.models import PlayerInQueue
+from room.models import PlayerInQueue, Room, PlayerInRoom
 from room.services.room_create import create_room
+
+channel_layer = get_channel_layer()
 
 
 class QueueConsumer(AsyncWebsocketConsumer):
@@ -91,7 +93,6 @@ class QueueConsumer(AsyncWebsocketConsumer):
                                 )
                             else:
                                 # add to group and send message that opponent found to players
-                                channel_layer = get_channel_layer()
                                 room = await create_room(
                                     deck_id_1=self.scope["deck"],
                                     player_id_1=self.scope["player"],
@@ -201,13 +202,39 @@ class RoomConsumer(AsyncWebsocketConsumer):
         self.room_name = None
 
     async def connect(self):
-        self.room_name = self.scope["url_route"]["kwargs"]["room_name"]
-        self.room_group_name = f"room_{self.room_name}"
+        await self.accept()
+
+        if not await self.connect_to_room():
+            await self.close()
 
         # Join room group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
-        await self.accept()
+    @sync_to_async
+    def connect_to_room(self):
+        slug = self.scope["url_route"]["kwargs"]["room_name"]
+
+        self.room_name = slug
+        self.room_group_name = f"room_{slug}"
+        room = Room.objects.filter(slug=slug)
+
+        if not room:
+            return False
+
+        self.scope["room"] = room
+
+        # check if player can be in a room
+        if self.scope["player"] not in [x.id for x in room.first().players.all()]:
+            return False
+
+        # add player info to scope
+        player = PlayerInRoom.objects.get(player_id=self.scope["player"])
+
+        self.scope["first"] = player.first
+        self.scope["score"] = player.score
+        self.scope["deck"] = player.deck.id
+
+        return True
 
     async def disconnect(self, close_code):
         # Leave room group
@@ -220,6 +247,12 @@ class RoomConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             {"type": "chat_message", "message": text_data},
         )
+
+    # info type message handler
+    async def info(self, event):
+        message = event["message"]
+
+        await self.send(text_data=json.dumps({"type": "INFO", "message": message}))
 
     # Receive message from room group
     async def chat_message(self, event):

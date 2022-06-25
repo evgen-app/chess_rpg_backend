@@ -12,16 +12,16 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
+    "django.contrib.sessions",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.messages",
-    "django.contrib.staticfiles",
     # Packages
     "rest_framework",
     "channels",
     # Apps
     "game",
-    "room"
+    "room",
 ]
 
 MIDDLEWARE = [
@@ -44,6 +44,7 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
 
 WSGI_APPLICATION = "chess_backend.wsgi.application"
 
