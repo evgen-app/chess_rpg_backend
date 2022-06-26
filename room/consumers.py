@@ -102,7 +102,7 @@ class QueueConsumer(AsyncWebsocketConsumer):
                                     player_score_2=opponent[1],
                                 )
 
-                                await channel_layer.send(
+                                await self.channel_layer.send(
                                     opponent[0],
                                     {
                                         "type": "info",
@@ -219,6 +219,14 @@ class RoomConsumer(AsyncWebsocketConsumer):
                     },
                 )
             )
+            if self.scope["opponent_channel"]:
+                await self.channel_layer.send(
+                    self.scope["opponent_channel"],
+                    {
+                        "type": "channel",
+                        "channel": self.channel_name,
+                    },
+                )
 
             # Join room group
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
@@ -253,13 +261,15 @@ class RoomConsumer(AsyncWebsocketConsumer):
         opponent = PlayerInRoom.objects.get(player_id=p_ids[0])
 
         self.scope["opponent"] = opponent.player.id
+        self.scope["opponent_channel"] = opponent.channel_name
         self.scope["opponent_score"] = opponent.score
         self.scope["opponent_deck"] = opponent.deck.id
         self.scope["opponent_first"] = opponent.first
         self.scope["opponent_online"] = opponent.online
 
         player.online = True
-        player.save(update_fields=["online"])
+        player.channel_name = self.channel_name
+        player.save(update_fields=["online", "channel_name"])
         return True
 
     async def disconnect(self, close_code):
@@ -275,11 +285,37 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
     # Receive message from WebSocket
     async def receive(self, text_data):
-        # Send message to room group
-        await self.channel_layer.group_send(
-            self.room_group_name,
-            {"type": "chat_message", "message": text_data},
-        )
+        data = None
+
+        try:
+            data = json.loads(text_data)
+        except ValueError:
+            await self.send(
+                text_data=json.dumps(
+                    {"type": "ERROR", "message": "data is not JSON serializable"}
+                )
+            )
+
+        if data:
+            if data["type"] == "start":
+                if not await self.start(data):
+                    await self.send(
+                        text_data=json.dumps(
+                            {"type": "ERROR", "message": "opponent is offline"}
+                        )
+                    )
+
+    async def start(self, data):
+        if self.scope["opponent_channel"] and self.scope["opponent_online"]:
+            await self.channel_layer.send(
+                self.scope["opponent_channel"],
+                {
+                    "type": "info",
+                    "message": "opponent is ready to start",
+                },
+            )
+            return True
+        return False
 
     # info type group message handler
     async def info(self, event):
@@ -306,3 +342,7 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
         # Send message to WebSocket
         await self.send(text_data=json.dumps({"lot": message}))
+
+    async def channel(self, event):
+        channel = event["channel"]
+        self.scope["opponent_channel"] = channel

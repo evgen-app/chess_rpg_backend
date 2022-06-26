@@ -31,6 +31,7 @@ class PlayerInRoom(models.Model):
     score = models.IntegerField(blank=False)
     deck = models.ForeignKey(Deck, on_delete=models.CASCADE, related_name="decks")
     online = models.BooleanField(default=False)
+    channel_name = models.CharField(max_length=50, blank=True, null=True)
 
     def __str__(self):
         return f"{self.player.name} in room {self.room.slug}"
