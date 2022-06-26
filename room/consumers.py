@@ -203,6 +203,7 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
     async def connect(self):
         await self.accept()
+        await self.check_origin()
 
         if not await self.connect_to_room():
             await self.close()
@@ -219,13 +220,17 @@ class RoomConsumer(AsyncWebsocketConsumer):
                     },
                 )
             )
-            if self.scope["opponent_channel"]:
+            if "opponent_channel" in self.scope and self.scope["opponent_channel"]:
                 await self.channel_layer.send(
                     self.scope["opponent_channel"],
                     {
                         "type": "channel",
                         "channel": self.channel_name,
                     },
+                )
+                await self.channel_layer.send(
+                    self.scope["opponent_channel"],
+                    {"type": "connection_info", "online": True},
                 )
 
             # Join room group
@@ -277,11 +282,18 @@ class RoomConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         await self.disconnect_player()
 
+        if "opponent_channel" in self.scope and self.scope["opponent_channel"]:
+            await self.channel_layer.send(
+                self.scope["opponent_channel"],
+                {"type": "connection_info", "online": False},
+            )
+
     @sync_to_async
     def disconnect_player(self):
         if "player_in_room" in self.scope:
             self.scope["player_in_room"].online = False
-            self.scope["player_in_room"].save(update_fields=["online"])
+            self.scope["player_in_room"].channel_name = None
+            self.scope["player_in_room"].save(update_fields=["online", "channel_name"])
 
     # Receive message from WebSocket
     async def receive(self, text_data):
@@ -346,3 +358,26 @@ class RoomConsumer(AsyncWebsocketConsumer):
     async def channel(self, event):
         channel = event["channel"]
         self.scope["opponent_channel"] = channel
+
+    async def connection_info(self, event):
+        status = event["online"]
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "INFO",
+                    "message": "opponent is online"
+                    if status
+                    else "opponent is offline",
+                }
+            )
+        )
+        self.scope["opponent_online"] = status
+
+    async def check_origin(self):
+        if not self.scope["player"]:
+            await self.send(
+                text_data=json.dumps(
+                    {"type": "ERROR", "message": "token is incorrect or expired"}
+                )
+            )
+            await self.close()
