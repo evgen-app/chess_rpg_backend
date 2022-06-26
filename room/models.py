@@ -30,7 +30,7 @@ class PlayerInRoom(models.Model):
     first = models.BooleanField()
     score = models.IntegerField(blank=False)
     deck = models.ForeignKey(Deck, on_delete=models.CASCADE, related_name="decks")
-    connected = models.BooleanField(default=False)
+    online = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.player.name} in room {self.room.slug}"
