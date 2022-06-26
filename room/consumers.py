@@ -207,6 +207,18 @@ class RoomConsumer(AsyncWebsocketConsumer):
         if not await self.connect_to_room():
             await self.close()
 
+        await self.channel_layer.group_send(
+            self.room_group_name,
+            {
+                "type": "info",
+                "message": f"welcome to room {self.room_name}",
+                "opponent_score": self.scope["opponent_score"],
+                "opponent_deck": self.scope["opponent_deck_id"],
+                "opponent_online": self.scope["opponent_online"],
+                "first": self.scope["first"],
+            },
+        )
+
         # Join room group
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
@@ -224,21 +236,40 @@ class RoomConsumer(AsyncWebsocketConsumer):
         self.scope["room"] = room
 
         # check if player can be in a room
-        if self.scope["player"] not in [x.id for x in room.first().players.all()]:
+        p_ids = [x.id for x in room.first().players.all()]
+        if self.scope["player"] not in p_ids:
             return False
 
         # add player info to scope
         player = PlayerInRoom.objects.get(player_id=self.scope["player"])
 
+        self.scope["player_in_room"] = player
         self.scope["first"] = player.first
         self.scope["score"] = player.score
         self.scope["deck"] = player.deck.id
 
+        p_ids.remove(player.player.id)
+
+        opponent = PlayerInRoom.objects.get(player_id=p_ids[0])
+
+        self.scope["opponent"] = opponent.player.id
+        self.scope["opponent_score"] = opponent.score
+        self.scope["opponent_deck"] = opponent.deck.id
+        self.scope["opponent_first"] = opponent.first
+        self.scope["opponent_online"] = opponent.online
+
+        player.connected = True
+        player.save(update_fields=["connected"])
         return True
 
     async def disconnect(self, close_code):
         # Leave room group
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+
+    @sync_to_async
+    def disconnect_player(self):
+        self.scope["player_in_room"].connected = False
+        self.scope["player_in_room"].save(update_fields=["connected"])
 
     # Receive message from WebSocket
     async def receive(self, text_data):
@@ -251,6 +282,19 @@ class RoomConsumer(AsyncWebsocketConsumer):
     # info type message handler
     async def info(self, event):
         message = event["message"]
+        msg = {"type": "INFO", "message": message}
+
+        if "opponent_score" in event:
+            msg["opponent_score"] = event["opponent_score"]
+
+        if "opponent_deck" in event:
+            msg["opponent_deck"] = event["opponent_deck"]
+
+        if "opponent_online" in event:
+            msg["opponent_online"] = event["opponent_online"]
+
+        if "first" in event:
+            msg["first"] = event["first"]
 
         await self.send(text_data=json.dumps({"type": "INFO", "message": message}))
 
