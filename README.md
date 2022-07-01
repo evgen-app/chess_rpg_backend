@@ -11,3 +11,27 @@ $ docker run -p 6379:6379 -d redis:5
 ```shell
 $ python3 manage.py runserver 0.0.0.0:8000  
 ```
+
+### Описание команд сокетов
+```json
+# подключиние к очереди(ws://room/)  
+{
+    "type": "connect",
+    "deck_id": int
+}
+
+# коннект к комнате (сообщение от сервера)
+{
+    "type": "INFO",
+    "opponent_score": int,
+    "coordinates" : [(x: int, y: int, type: str, model_url: url, your: bool), ...],
+    "opponent_online": true,
+    "first": bool
+}
+
+# состояние оппонента в комнате(сообщение от сервера)
+{
+    "type": "INFO",
+    "message": "opponent is online" / "opponent is offline"
+}
+```
