@@ -3,7 +3,7 @@ from random import randint
 
 from common.generators import generate_charset
 from game.models import Player
-from room.models import Room, PlayerInRoom
+from room.models import Room, PlayerInRoom, GameState
 
 
 @sync_to_async
@@ -35,5 +35,11 @@ def create_room(
         score=player_score_2,
         deck_id=deck_id_2,
         first=first_player == 2,
+    )
+    GameState.objects.create(
+        room=room, player=player_1, round=0, message="Game started"
+    )
+    GameState.objects.create(
+        room=room, player=player_2, round=0, message="Game started"
     )
     return room.slug

@@ -24,6 +24,11 @@ INSTALLED_APPS = [
     "room",
 ]
 
+if DEBUG:
+    INSTALLED_APPS.append("django.contrib.staticfiles")
+    INSTALLED_APPS.append("drf_yasg")
+
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",

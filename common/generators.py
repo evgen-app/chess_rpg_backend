@@ -11,4 +11,4 @@ def generate_charset(length: int):
 
 
 def gen_ton():
-    return "".join([str(randint(0, 9)) for _ in range(48)])
+    return int("".join([str(randint(0, 9)) for _ in range(48)]))

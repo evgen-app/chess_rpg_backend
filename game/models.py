@@ -1,7 +1,6 @@
 import random
 import uuid
 
-from django.core.files import File
 from django.core.validators import (
     MinValueValidator,
     MaxValueValidator,
@@ -9,18 +8,16 @@ from django.core.validators import (
     MaxLengthValidator,
 )
 from django.db import models
-from django.conf import settings
 
 from common.generators import generate_charset
 from game.services.jwt import sign_jwt
 
-HER0_TYPES = [
-    ("WIZARD", "wizard"),
-    ("ARCHER", "archer"),
-    ("WARRIOR", "warrior"),
-    ("KING", "king"),
-]
-HER0_IMAGE_TYPES = [("DIE", "die"), ("IDLE", "idle"), ("ATTACK", "attack")]
+
+class HeroTypes(models.TextChoices):
+    wizard = "WIZARD", "wizard"
+    archer = "ARCHER", "archer"
+    warrior = "WARRIOR", "warrior"
+    king = "KING", "king"
 
 
 class Player(models.Model):
@@ -47,7 +44,7 @@ class Player(models.Model):
             + ["ARCHER" for _ in range(4)]
             + ["WARRIOR" for _ in range(6)]
             + ["WIZARD" for _ in range(2)]
-            + [random.choice(HER0_TYPES[:3])[0] for _ in range(3)]
+            + [random.choice(HeroTypes.choices[:3])[0] for _ in range(3)]
         )
         for t in types:
             hero = Hero()
@@ -99,16 +96,8 @@ class Hero(models.Model):
     )
     added = models.DateTimeField(auto_now_add=True)
 
-    type = models.CharField(blank=False, choices=HER0_TYPES, max_length=7)
-    idle_img_f = models.ForeignKey(
-        "HeroImageSet", on_delete=models.CASCADE, related_name="idle_image_fkey"
-    )
-    attack_img_f = models.ForeignKey(
-        "HeroImageSet", on_delete=models.CASCADE, related_name="attack_image_fkey"
-    )
-    die_img_f = models.ForeignKey(
-        "HeroImageSet", on_delete=models.CASCADE, related_name="die_image_fkey"
-    )
+    type = models.CharField(blank=False, choices=HeroTypes.choices, max_length=7)
+    model = models.ForeignKey("HeroModelSet", on_delete=models.CASCADE)
     health = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(10)], blank=False
     )
@@ -135,13 +124,13 @@ class Hero(models.Model):
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
         self.idle_img_f = random.choice(
-            [x for x in HeroImageSet.objects.filter(hero_type=self.type, type="IDLE")]
+            [x for x in HeroModelSet.objects.filter(hero_type=self.type)]
         )
         self.attack_img_f = random.choice(
-            [x for x in HeroImageSet.objects.filter(hero_type=self.type, type="ATTACK")]
+            [x for x in HeroModelSet.objects.filter(hero_type=self.type)]
         )
         self.die_img_f = random.choice(
-            [x for x in HeroImageSet.objects.filter(hero_type=self.type, type="DIE")]
+            [x for x in HeroModelSet.objects.filter(hero_type=self.type)]
         )
         super(Hero, self).save()
 
@@ -154,13 +143,12 @@ class Hero(models.Model):
         verbose_name_plural = "heroes"
 
 
-class HeroImageSet(models.Model):
-    type = models.CharField(max_length=10, choices=HER0_IMAGE_TYPES)
-    hero_type = models.CharField(blank=False, choices=HER0_TYPES, max_length=7)
-    image = models.ImageField(upload_to="uploads/")
+class HeroModelSet(models.Model):
+    hero_type = models.CharField(blank=False, choices=HeroTypes.choices, max_length=7)
+    model = models.ImageField(upload_to="uploads/")
 
     def __str__(self):
-        return f"{self.hero_type} {self.type} image"
+        return f"{self.hero_type} model file"
 
 
 class Deck(models.Model):

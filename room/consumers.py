@@ -5,7 +5,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 
 from game.models import Deck
-from room.models import PlayerInQueue, Room, PlayerInRoom
+from room.models import PlayerInQueue, Room, PlayerInRoom, GameState
 from room.services.room_create import create_room
 
 channel_layer = get_channel_layer()
@@ -208,15 +208,18 @@ class RoomConsumer(AsyncWebsocketConsumer):
         if not await self.connect_to_room():
             await self.close()
         else:
+            message, round = await self.get_state()
+
             await self.send(
                 json.dumps(
                     {
                         "type": "INFO",
-                        "message": f"welcome to room {self.room_name}",
                         "opponent_score": self.scope["opponent_score"],
                         "opponent_deck": self.scope["opponent_deck"],
                         "opponent_online": self.scope["opponent_online"],
                         "first": self.scope["first"],
+                        "state": message,
+                        "round": round,
                     },
                 )
             )
@@ -235,6 +238,11 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
             # Join room group
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
+
+    @sync_to_async
+    def get_state(self):
+        state = self.scope["player_in_room"].get_state()
+        return state.message, state.round
 
     @sync_to_async
     def connect_to_room(self):
@@ -345,6 +353,12 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
         if "first" in event:
             msg["first"] = event["first"]
+
+        if "state" in event:
+            msg["state"] = event["state"]
+
+        if "round" in event:
+            msg["round"] = event["round"]
 
         await self.send(text_data=json.dumps(msg))
 

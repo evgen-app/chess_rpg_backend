@@ -9,38 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('game', '0002_deck_heroimageset_heroindeck_playerauthsession_and_more'),
     ]
 
     operations = [
-        migrations.CreateModel(
-            name='Room',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('slug', models.SlugField(max_length=16, unique=True)),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('ended', models.BooleanField(default=False)),
-            ],
-        ),
-        migrations.CreateModel(
-            name='PlayerInRoom',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('first', models.BooleanField()),
-                ('score', models.IntegerField()),
-                ('deck', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='decks', to='game.deck')),
-                ('player', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to='game.player')),
-                ('room', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='players', to='room.room')),
-            ],
-        ),
-        migrations.CreateModel(
-            name='PlayerInQueue',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('channel_name', models.CharField(max_length=50)),
-                ('score', models.IntegerField()),
-                ('deck', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='game.deck')),
-                ('player', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to='game.player')),
-            ],
-        ),
     ]
