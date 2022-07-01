@@ -13,7 +13,7 @@ $ python3 manage.py runserver 0.0.0.0:8000
 ```
 
 ### Описание команд сокетов
-```json
+```python
 # подключиние к очереди(ws://room/)  
 {
     "type": "connect",
