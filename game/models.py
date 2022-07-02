@@ -117,15 +117,7 @@ class Hero(models.Model):
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
-        self.idle_img_f = random.choice(
-            [x for x in HeroModelSet.objects.filter(hero_type=self.type)]
-        )
-        self.attack_img_f = random.choice(
-            [x for x in HeroModelSet.objects.filter(hero_type=self.type)]
-        )
-        self.die_img_f = random.choice(
-            [x for x in HeroModelSet.objects.filter(hero_type=self.type)]
-        )
+        self.model_f = random.choice(HeroModelSet.objects.filter(hero_type=self.type))
         super(Hero, self).save()
 
     class Meta:

@@ -22,9 +22,7 @@ class GetHeroSerializer(serializers.ModelSerializer):
         fields = (
             "added",
             "type",
-            "idle_img",
-            "attack_img",
-            "die_img",
+            "model",
             "health",
             "attack",
             "speed",
@@ -37,9 +35,7 @@ class ListHeroSerializer(serializers.ModelSerializer):
         fields = (
             "uuid",
             "type",
-            "idle_img",
-            "attack_img",
-            "die_img",
+            "model",
             "health",
             "attack",
             "speed",
