@@ -1,5 +1,12 @@
 # chess_rpg_backend
-Backend for chess rpg game
+DEV branch for backend for chess rpg game
+<hr>
+
+##### dev server for up to date endpoints(web socket not provided)
+
+- https://dev.akarpov.ru
+
+<hr>
 
 ### installation
 ```shell
