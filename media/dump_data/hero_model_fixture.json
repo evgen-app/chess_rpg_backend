@@ -1,0 +1,34 @@
+[
+  {
+    "model": "game.heromodelset",
+    "pk": 1,
+    "fields": {
+      "hero_type": "KING",
+      "model": "dump_data/dump.jpg"
+    }
+  },
+  {
+    "model": "game.heromodelset",
+    "pk": 2,
+    "fields": {
+      "hero_type": "WARRIOR",
+      "model": "dump_data/dump_mx4zxHq.jpg"
+    }
+  },
+  {
+    "model": "game.heromodelset",
+    "pk": 3,
+    "fields": {
+      "hero_type": "ARCHER",
+      "model": "dump_data/dump_d6lH7IJ.jpg"
+    }
+  },
+  {
+    "model": "game.heromodelset",
+    "pk": 4,
+    "fields": {
+      "hero_type": "WIZARD",
+      "model": "dump_data/dump_1P13Svy.jpg"
+    }
+  }
+]
