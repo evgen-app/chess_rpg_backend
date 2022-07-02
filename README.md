@@ -1,15 +1,23 @@
 # chess_rpg_backend
-Backend for chess rpg game
+DEV branch for backend for chess rpg game
+<hr>
+
+##### dev server for up to date endpoints(web socket not provided)
+
+- https://dev.akarpov.ru
+
+<hr>
 
 ### installation
 ```shell
 $ python3 manage.py makemigrations & python3 manage.py migrate
+$ python3 manage.py loaddata media/dump_data/hero_model_fixture.json
 $ docker run -p 6379:6379 -d redis:5
 ```
 
 ### run
 ```shell
-$ python3 manage.py runserver 0.0.0.0:8000  
+$ daphne -b 0.0.0.0 -p 8000 chess_backend.asgi:application             
 ```
 
 ### Описание команд сокетов

@@ -97,7 +97,7 @@ class Hero(models.Model):
     added = models.DateTimeField(auto_now_add=True)
 
     type = models.CharField(blank=False, choices=HeroTypes.choices, max_length=7)
-    model = models.ForeignKey("HeroModelSet", on_delete=models.CASCADE)
+    model_f = models.ForeignKey("HeroModelSet", on_delete=models.CASCADE)
     health = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(10)], blank=False
     )
@@ -108,14 +108,8 @@ class Hero(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(10)], blank=False
     )
 
-    def idle_img(self):
-        return self.idle_img_f.image.url
-
-    def attack_img(self):
-        return self.attack_img_f.image.url
-
-    def die_img(self):
-        return self.die_img_f.image.url
+    def model(self):
+        return self.model_f.model.url
 
     def __str__(self):
         return f"{self.type} {self.player.name}"
@@ -145,7 +139,7 @@ class Hero(models.Model):
 
 class HeroModelSet(models.Model):
     hero_type = models.CharField(blank=False, choices=HeroTypes.choices, max_length=7)
-    model = models.ImageField(upload_to="uploads/")
+    model = models.FileField(upload_to="uploads/")
 
     def __str__(self):
         return f"{self.hero_type} model file"
