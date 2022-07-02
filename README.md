@@ -16,7 +16,7 @@ $ docker run -p 6379:6379 -d redis:5
 
 ### run
 ```shell
-$ python3 manage.py runserver 0.0.0.0:8000  
+$ daphne -b 0.0.0.0 -p 8000 chess_backend.asgi:application             
 ```
 
 ### Описание команд сокетов
