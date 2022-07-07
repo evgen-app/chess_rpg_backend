@@ -14,9 +14,9 @@ from game.services.jwt import sign_jwt
 
 
 class HeroTypes(models.TextChoices):
-    wizard = "WIZARD", "wizard"
     archer = "ARCHER", "archer"
     warrior = "WARRIOR", "warrior"
+    wizard = "WIZARD", "wizard"
     king = "KING", "king"
 
 
@@ -31,32 +31,6 @@ class Player(models.Model):
     )
     name = models.CharField(max_length=100, blank=True)
     created = models.DateTimeField(auto_now_add=True)
-
-    def save(
-        self, force_insert=False, force_update=False, using=None, update_fields=None
-    ):
-        """saves user and creates deck for him with 16 heroes"""
-        super(Player, self).save()
-        PlayerAuthSession.objects.create(player=self)
-        deck = Deck.objects.create(player=self)
-        types = (
-            ["KING"]
-            + ["ARCHER" for _ in range(4)]
-            + ["WARRIOR" for _ in range(6)]
-            + ["WIZARD" for _ in range(2)]
-            + [random.choice(HeroTypes.choices[:3])[0] for _ in range(3)]
-        )
-        for t in types:
-            hero = Hero()
-            hero.player = self
-            hero.type = t
-
-            hero.health = random.randint(0, 10)
-            hero.attack = random.randint(0, 10)
-            hero.speed = random.randint(0, 10)
-
-            hero.save()
-            HeroInDeck.objects.create(deck=deck, hero=hero)
 
     def get_last_deck(self):
         return Deck.objects.filter(player=self).last()
@@ -149,10 +123,9 @@ class Deck(models.Model):
         return f"{self.player.name}'s deck"
 
     def get_heroes(self):
-        return [x.hero for x in HeroInDeck.objects.filter(deck=self)]
+        return HeroInDeck.objects.filter(deck=self)
 
     def heroes(self):
-        # added for better DRF view
         return self.get_heroes()
 
     def score(self):
@@ -176,6 +149,12 @@ class HeroInDeck(models.Model):
         on_delete=models.CASCADE,
         related_name="hero_in_deck",
         related_query_name="decks",
+    )
+    x = models.IntegerField(
+        blank=False, validators=[MinValueValidator(1), MaxValueValidator(8)]
+    )
+    y = models.IntegerField(
+        blank=False, validators=[MinValueValidator(1), MaxValueValidator(2)]
     )
 
     class Meta:

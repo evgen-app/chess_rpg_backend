@@ -42,6 +42,14 @@ class ListHeroSerializer(serializers.ModelSerializer):
         )
 
 
+class ListHeroInDeckSerializer(serializers.ModelSerializer):
+    hero = ListHeroSerializer()
+
+    class Meta:
+        model = HeroInDeck
+        fields = ("hero", "x", "y")
+
+
 class CreatePlayerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player
@@ -102,7 +110,7 @@ class GetPlayerSerializer(serializers.ModelSerializer):
 
 class GetDeckSerializer(serializers.ModelSerializer):
     player = GetPlayerSerializer()
-    heroes = ListHeroSerializer(many=True)
+    heroes = ListHeroInDeckSerializer(many=True)
 
     class Meta:
         model = Deck
