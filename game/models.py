@@ -92,7 +92,7 @@ class Hero(models.Model):
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
         self.model_f = random.choice(HeroModelSet.objects.filter(hero_type=self.type))
-        super(Hero, self).save()
+        super(Hero, self).save(force_insert, force_update, using, update_fields)
 
     class Meta:
         indexes = [models.Index(fields=["uuid"])]
