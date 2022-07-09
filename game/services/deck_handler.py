@@ -10,10 +10,9 @@ def create_first_deck(player: Player):
         [None, None, None, None, None, None, None, None],
     ]
     types = (
-        ["KING"]
+        ["KING", "WIZARD"]
         + ["ARCHER" for _ in range(4)]
         + ["WARRIOR" for _ in range(6)]
-        + ["WIZARD" for _ in range(2)]
         + [random.choice(HeroTypes.choices[:2])[0] for _ in range(3)]
     )
     for t in types:
@@ -26,6 +25,10 @@ def create_first_deck(player: Player):
             pos_x = 4
             pos_y = 0
             positions[0][4] = hero
+        elif t == "WIZARD":
+            pos_x = 3
+            pos_y = 0
+            positions[0][3] = hero
         else:
             pos_x = random.randint(0, 7)
             pos_y = random.randint(0, 1)

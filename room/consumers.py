@@ -4,7 +4,6 @@ import django
 
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from channels.layers import get_channel_layer
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_backend.settings")
 django.setup()
