@@ -37,14 +37,24 @@ def create_room(
         first=first_player == 2,
     )
     for p, d_id in [(p1, deck_id_1), (p2, deck_id_2)]:
-        GameState.objects.create(room=room, player=p, round=0, message="Game started")
-        for hero in Deck.objects.get(id=d_id).heroes.all():
+        GameState.objects.create(
+            room=room, player=p.player, round=0, message="Game started"
+        )
+        for hero_in_deck in Deck.objects.get(id=d_id).heroes():
             if p.first:
                 HeroInGame.objects.create(
-                    hero=hero, player=p, room=room, x=hero.x, y=hero.y
+                    hero=hero_in_deck.hero,
+                    player=p,
+                    room=room,
+                    x=hero_in_deck.x,
+                    y=hero_in_deck.y,
                 )
             else:
                 HeroInGame.objects.create(
-                    hero=hero, player=p, room=room, x=hero.x, y=8 - hero.y
+                    hero=hero_in_deck.hero,
+                    player=p,
+                    room=room,
+                    x=hero_in_deck.x,
+                    y=8 - hero_in_deck.y,
                 )
     return room.slug

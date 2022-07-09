@@ -5,6 +5,8 @@ import django
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from room.services.game_logic import move_handler
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_backend.settings")
 django.setup()
 
@@ -286,9 +288,16 @@ class RoomConsumer(BaseConsumer):
             await self.send_message("ERROR", message="data is not JSON serializable")
 
         if data:
-            if data["type"] == "start":
+            if "type" not in data:
+                await self.send_message("ERROR", message="incorrect data typing")
+            elif data["type"] == "start":
                 if not await self.start(data):
                     await self.send_message("ERROR", message="opponent is offline")
+            elif data["type"] == "move":
+                if all(x in data for x in ["x", "y", "px", "py"]):
+                    await self.perform_move(data)
+            else:
+                await self.send_message("ERROR", message="incorrect data typing")
 
     async def start(self, data):
         if self.scope["opponent_channel"] and self.scope["opponent_online"]:
@@ -297,6 +306,22 @@ class RoomConsumer(BaseConsumer):
                 {
                     "type": "info",
                     "message": "opponent is ready to start",
+                },
+            )
+            return True
+        return False
+
+    async def perform_move(self, data):
+        await move_handler(data["px"], data["py"], data["x"], data["y"], self.room_name, self.scope["player_in_room"])
+        if self.scope["opponent_channel"] and self.scope["opponent_online"]:
+            await self.channel_layer.send(
+                self.scope["opponent_channel"],
+                {
+                    "type": "move",
+                    "x": data["x"],
+                    "y": data["y"],
+                    "px": data["px"],
+                    "py": data["py"],
                 },
             )
             return True
@@ -327,13 +352,6 @@ class RoomConsumer(BaseConsumer):
 
         await self.send(text_data=json.dumps(msg))
 
-    # Receive message from room group
-    async def chat_message(self, event):
-        message = event["message"]
-
-        # Send message to WebSocket
-        await self.send(text_data=json.dumps({"lot": message}))
-
     async def channel(self, event):
         channel = event["channel"]
         self.scope["opponent_channel"] = channel
@@ -351,6 +369,19 @@ class RoomConsumer(BaseConsumer):
             )
         )
         self.scope["opponent_online"] = status
+
+    async def move(self, event):
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "MOVE",
+                    "x": event["x"],
+                    "y": event["y"],
+                    "px": event["px"],
+                    "py": event["py"]
+                }
+            )
+        )
 
     async def check_origin(self):
         if not self.scope["player"]:
