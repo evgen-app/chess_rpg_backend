@@ -9,6 +9,7 @@ from django.core.validators import (
 )
 from django.db import models
 
+from chess_backend import settings
 from common.generators import generate_charset
 from game.services.jwt import sign_jwt
 
@@ -39,10 +40,13 @@ class Player(models.Model):
         return PlayerAuthSession.objects.get(player=self).jit
 
     def get_refresh_token(self):
-        return sign_jwt({"jit": self.get_auth_session(), "type": "refresh"})
+        return sign_jwt(
+            {"jit": self.get_auth_session(), "type": "refresh"},
+            t_life=settings.TOKEN_EXP,
+        )
 
     def get_access_token(self):
-        return sign_jwt({"id": self.id, "type": "access"}, t_life=3600)
+        return sign_jwt({"id": self.id, "type": "access"}, t_life=settings.AUTH_EXP)
 
     def __str__(self):
         return self.name
@@ -129,7 +133,9 @@ class Deck(models.Model):
         return self.get_heroes()
 
     def score(self):
-        return sum([x.hero.attack + x.hero.health + x.hero.speed for x in self.get_heroes()])
+        return sum(
+            [x.hero.attack + x.hero.health + x.hero.speed for x in self.get_heroes()]
+        )
 
     class Meta:
         db_table = "deck"

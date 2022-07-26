@@ -5,16 +5,27 @@ from game.models import Deck, Player, HeroTypes, Hero, HeroInDeck
 
 def create_first_deck(player: Player):
     deck = Deck.objects.create(player=player)
-    positions = [
-        [None, None, None, None, None, None, None, None],
-        [None, None, None, None, None, None, None, None],
-    ]
+    positions = []
+
+    for x in range(8):
+        for y in range(2):
+            if (x != 3 and y != 0) or (x != 4 and y != 0):
+                positions.append((x, y))
+    print(positions)
+    random.shuffle(positions)
+
     types = (
         ["KING", "WIZARD"]
         + ["ARCHER" for _ in range(4)]
         + ["WARRIOR" for _ in range(6)]
-        + [random.choice(HeroTypes.choices[:2])[0] for _ in range(3)]
     )
+    for _ in range(4):
+        t = random.choice(HeroTypes.choices[:3])[0]
+        if t == "WIZARD" and types.count("WIZARD") > 1:
+            t = random.choice(HeroTypes.choices[:2])[0]
+        types.append(t)
+
+    counter = 0
     for t in types:
         hero = Hero()
         hero.player = player
@@ -24,19 +35,14 @@ def create_first_deck(player: Player):
         if t == "KING":
             pos_x = 4
             pos_y = 0
-            positions[0][4] = hero
         elif t == "WIZARD":
             pos_x = 3
             pos_y = 0
-            positions[0][3] = hero
         else:
-            pos_x = random.randint(0, 7)
-            pos_y = random.randint(0, 1)
-            while positions[pos_y][pos_x] is not None:
-                pos_x = random.randint(0, 7)
-                pos_y = random.randint(0, 1)
+            pos_x = positions[counter][0]
+            pos_y = positions[counter][1]
 
-            positions[pos_y][pos_x] = hero
+            counter += 1
 
         hero.health = random.randint(0, 10)
         hero.attack = random.randint(0, 10)

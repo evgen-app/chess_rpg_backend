@@ -6,8 +6,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-%_8sy196w4hzo9^cp9(@r=i+amh47r4mxfhq_(ok&=c(@%bhmk"
-TOKEN_EXP = 2678400  # 31 day
 DEBUG = True
+if DEBUG:
+    TOKEN_EXP = 31536000  # 1 year
+    AUTH_EXP = 31536000  # 1 year
+else:
+    TOKEN_EXP = 2678400  # 1 month
+    AUTH_EXP = 3600  # 1 hour
 
 ALLOWED_HOSTS = []
 

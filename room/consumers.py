@@ -34,6 +34,14 @@ class QueueConsumer(BaseConsumer):
         await self.accept()
         await self.check_origin()
 
+        if await self.check_user_already_in_room():
+            await self.send_message(
+                "INFO",
+                message=f"user already in room {self.scope['room_id']}",
+                room=self.scope["room"],
+            )
+            await self.close()
+
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
     async def disconnect(self, close_code):
@@ -116,8 +124,20 @@ class QueueConsumer(BaseConsumer):
     @sync_to_async
     def delete_user_in_queue(self):
         try:
-            PlayerInQueue.objects.get(player_id=self.scope["player"]).delete()
+            PlayerInQueue.objects.get(player_id=self.scope["player"])
         except PlayerInQueue.DoesNotExist:
+            return False
+
+    @sync_to_async
+    def check_user_already_in_room(self):
+        try:
+            p = PlayerInRoom.objects.get(player_id=self.scope["player"])
+
+            self.scope["room"] = p.room.slug
+            self.scope["room_id"] = p.room.id
+
+            return True
+        except PlayerInRoom.DoesNotExist:
             return False
 
     @sync_to_async
@@ -312,7 +332,14 @@ class RoomConsumer(BaseConsumer):
         return False
 
     async def perform_move(self, data):
-        await move_handler(data["px"], data["py"], data["x"], data["y"], self.room_name, self.scope["player_in_room"])
+        await move_handler(
+            data["px"],
+            data["py"],
+            data["x"],
+            data["y"],
+            self.room_name,
+            self.scope["player_in_room"],
+        )
         if self.scope["opponent_channel"] and self.scope["opponent_online"]:
             await self.channel_layer.send(
                 self.scope["opponent_channel"],
@@ -378,7 +405,7 @@ class RoomConsumer(BaseConsumer):
                     "x": event["x"],
                     "y": event["y"],
                     "px": event["px"],
-                    "py": event["py"]
+                    "py": event["py"],
                 }
             )
         )

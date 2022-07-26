@@ -1,11 +1,17 @@
 from asgiref.sync import sync_to_async
+from termcolor import colored
 
 from room.models import HeroInGame, Room, PlayerInRoom
 
 
 def _check_path(f_x: int, f_y: int, x: int, y: int, room: Room, move_type: str):
     if move_type == "DIAGONAL":
-        return HeroInGame.objects.filter(room=room, x__range=(f_x, x), y__range=(f_y, y)).count() == 0
+        return (
+            HeroInGame.objects.filter(
+                room=room, x__range=(f_x, x), y__range=(f_y, y)
+            ).count()
+            == 0
+        )
     elif move_type == "HORIZONTAL":
         return HeroInGame.objects.filter(room=room, x=x, y__range=(f_y, y)).count() == 0
     elif move_type == "VERTICAL":
@@ -14,13 +20,13 @@ def _check_path(f_x: int, f_y: int, x: int, y: int, room: Room, move_type: str):
 
 
 def _validate_hero_movement(
-        hero_type: str,
-        prev_x: int,
-        prev_y: int,
-        x: int,
-        y: int,
-        room: Room,
-        first: bool = False,  # needed for warrior
+    hero_type: str,
+    prev_x: int,
+    prev_y: int,
+    x: int,
+    y: int,
+    room: Room,
+    first: bool = False,  # needed for warrior
 ):
     if hero_type == "KING":
         if abs(x - prev_x) > 1 or abs(y - prev_y) > 1:
@@ -50,42 +56,30 @@ def _validate_hero_movement(
 
 
 def _print_board(room: Room):
-    class color:
-        PURPLE = '\033[95m'
-        CYAN = '\033[96m'
-        DARKCYAN = '\033[36m'
-        BLUE = '\033[94m'
-        GREEN = '\033[92m'
-        YELLOW = '\033[93m'
-        RED = '\033[91m'
-        BOLD = '\033[1m'
-        UNDERLINE = '\033[4m'
-        END = '\033[0m'
-
     for y in range(1, 8):
         for x in range(1, 9):
             try:
                 hero = HeroInGame.objects.get(x=x, y=y, room=room)
                 if hero.hero.type == "KING":
                     if hero.player.first:
-                        print("♔", end="")
+                        print(colored("♔", 'green', attrs=['bold']), end="")
                     else:
-                        print("♚", end="")
+                        print(colored("♚", 'red', attrs=['bold']), end="")
                 elif hero.hero.type == "WIZARD":
                     if hero.player.first:
-                        print("♕", end="")
+                        print(colored("♕", 'green', attrs=['bold']), end="")
                     else:
-                        print("♛", end="")
+                        print(colored("♛", 'red', attrs=['bold']), end="")
                 elif hero.hero.type == "ARCHER":
                     if hero.player.first:
-                        print("♗", end="")
+                        print(colored("♗", 'green', attrs=['bold']), end="")
                     else:
-                        print("♝", end="")
+                        print(colored("♝", 'red', attrs=['bold']), end="")
                 else:
                     if hero.player.first:
-                        print("♙", end="")
+                        print(colored("♙", 'green', attrs=['bold']), end="")
                     else:
-                        print("♟", end="")
+                        print(colored("♟", 'red', attrs=['bold']), end="")
             except HeroInGame.DoesNotExist:
                 print("*", end="")
         print()
@@ -93,7 +87,7 @@ def _print_board(room: Room):
 
 @sync_to_async
 def move_handler(
-        prev_x: int, prev_y: int, x: int, y: int, room_slug: str, player: PlayerInRoom
+    prev_x: int, prev_y: int, x: int, y: int, room_slug: str, player: PlayerInRoom
 ):
     room = Room.objects.get(slug=room_slug)
     _print_board(room)  # TODO: Remove in production
@@ -108,4 +102,3 @@ def move_handler(
     h_t = hero.hero.type
 
     _print_board(room)  # TODO: Remove in production
-
