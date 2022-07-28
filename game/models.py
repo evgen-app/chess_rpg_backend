@@ -167,6 +167,7 @@ class HeroInDeck(models.Model):
         db_table = "hero_in_deck"
         verbose_name = "Hero in deck"
         verbose_name_plural = "Heroes in decks"
+        ordering = ["y", "x"]
 
 
 class PlayerAuthSession(models.Model):

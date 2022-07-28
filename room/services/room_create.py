@@ -6,15 +6,15 @@ from game.models import Player, Deck
 from room.models import Room, PlayerInRoom, GameState, HeroInGame
 
 
-@sync_to_async
-def create_room(
+def sync_create_room(
     deck_id_1: int,
     player_id_1: int,
     player_score_1: int,
     deck_id_2: int,
     player_id_2: int,
     player_score_2: int,
-) -> str:
+):
+
     room = Room.objects.create(slug=generate_charset(16))
     player_1 = Player.objects.get(id=player_id_1)
     player_2 = Player.objects.get(id=player_id_2)
@@ -58,3 +58,8 @@ def create_room(
                     y=8 - hero_in_deck.y,
                 )
     return room.slug
+
+
+@sync_to_async
+def create_room(**kwargs):
+    return sync_create_room(**kwargs)

@@ -9,9 +9,9 @@ def create_first_deck(player: Player):
 
     for x in range(8):
         for y in range(2):
-            if (x != 3 and y != 0) or (x != 4 and y != 0):
-                positions.append((x, y))
-    print(positions)
+            positions.append((x, y))
+    positions.remove((3, 0))
+    positions.remove((4, 0))
     random.shuffle(positions)
 
     types = (
