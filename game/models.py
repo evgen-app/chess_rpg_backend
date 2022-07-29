@@ -168,6 +168,7 @@ class HeroInDeck(models.Model):
         verbose_name = "Hero in deck"
         verbose_name_plural = "Heroes in decks"
         ordering = ["y", "x"]
+        unique_together = ["deck", "x", "y"]
 
 
 class PlayerAuthSession(models.Model):

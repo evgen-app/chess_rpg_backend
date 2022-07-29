@@ -76,3 +76,6 @@ class HeroInGame(models.Model):
             self.health = self.hero.health
 
         super().save(force_insert, force_update, using, update_fields)
+
+    class Meta:
+        unique_together = ["x", "y", "room"]

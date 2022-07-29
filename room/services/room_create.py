@@ -55,7 +55,7 @@ def sync_create_room(
                     player=p,
                     room=room,
                     x=hero_in_deck.x,
-                    y=8 - hero_in_deck.y,
+                    y=8 if hero_in_deck.y == 1 else 7,
                 )
     return room.slug
 

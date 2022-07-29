@@ -56,7 +56,7 @@ def _validate_hero_movement(
 
 
 def _print_board(room: Room):
-    for y in range(1, 8):
+    for y in range(1, 9):
         for x in range(1, 9):
             try:
                 hero = HeroInGame.objects.get(x=x, y=y, room=room)

@@ -7,18 +7,15 @@ def create_first_deck(player: Player):
     deck = Deck.objects.create(player=player)
     positions = []
 
-    for x in range(8):
-        for y in range(2):
+    for x in range(1, 9):
+        for y in range(1, 3):
             positions.append((x, y))
-    positions.remove((3, 0))
-    positions.remove((4, 0))
+    positions.remove((4, 1))
+    positions.remove((5, 1))
     random.shuffle(positions)
 
-    types = (
-        ["KING", "WIZARD"]
-        + ["ARCHER" for _ in range(4)]
-        + ["WARRIOR" for _ in range(6)]
-    )
+    types = ["KING", "WIZARD"] + ["ARCHER" for _ in range(4)] + ["WARRIOR" for _ in range(6)]
+
     for _ in range(4):
         t = random.choice(HeroTypes.choices[:3])[0]
         if t == "WIZARD" and types.count("WIZARD") > 1:
@@ -33,11 +30,11 @@ def create_first_deck(player: Player):
 
         # set random position on deck for heroes
         if t == "KING":
-            pos_x = 4
-            pos_y = 0
+            pos_x = 5
+            pos_y = 1
         elif t == "WIZARD":
-            pos_x = 3
-            pos_y = 0
+            pos_x = 4
+            pos_y = 1
         else:
             pos_x = positions[counter][0]
             pos_y = positions[counter][1]
@@ -49,4 +46,4 @@ def create_first_deck(player: Player):
         hero.speed = random.randint(0, 10)
 
         hero.save()
-        HeroInDeck.objects.create(deck=deck, hero=hero, x=pos_x + 1, y=pos_y + 1)
+        HeroInDeck.objects.create(deck=deck, hero=hero, x=pos_x, y=pos_y)
