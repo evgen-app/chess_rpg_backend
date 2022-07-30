@@ -1,0 +1,6 @@
+Django==4.0.5
+channels==3.0.4
+djangorestframework==3.13.1
+Pillow==9.1.1
+PyJWT==2.4.0
+channels-redis==3.4.1
