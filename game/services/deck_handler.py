@@ -41,9 +41,9 @@ def create_first_deck(player: Player):
 
             counter += 1
 
-        hero.health = random.randint(0, 10)
-        hero.attack = random.randint(0, 10)
-        hero.speed = random.randint(0, 10)
+        hero.health = random.randint(1, 10)
+        hero.attack = random.randint(1, 10)
+        hero.speed = random.randint(1, 10)
 
         hero.save()
         HeroInDeck.objects.create(deck=deck, hero=hero, x=pos_x, y=pos_y)
