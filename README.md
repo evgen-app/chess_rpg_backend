@@ -1,5 +1,5 @@
 # chess_rpg_backend
-DEV branch for backend for chess rpg game
+main branch for backend for chess rpg game
 <hr>
 
 ##### dev server for up to date endpoints(web socket not provided)
