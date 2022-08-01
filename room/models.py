@@ -42,7 +42,7 @@ class PlayerInRoom(models.Model):
 
 
 class GameState(models.Model):
-    room = models.ForeignKey(Room, on_delete=models.CASCADE)
+    room = models.ForeignKey(Room, related_name="states", on_delete=models.CASCADE)
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
     round = models.IntegerField(blank=False)
     message = models.CharField(max_length=100, blank=False)
@@ -54,7 +54,7 @@ class GameState(models.Model):
 class HeroInGame(models.Model):
     hero = models.ForeignKey(Hero, on_delete=models.CASCADE)
     player = models.ForeignKey(PlayerInRoom, on_delete=models.CASCADE)
-    room = models.ForeignKey(Room, on_delete=models.CASCADE)
+    room = models.ForeignKey(Room, related_name="heroes", on_delete=models.CASCADE)
 
     # state on board
     x = models.IntegerField(
@@ -78,4 +78,4 @@ class HeroInGame(models.Model):
         super().save(force_insert, force_update, using, update_fields)
 
     class Meta:
-        unique_together = ["x", "y", "room"]
+        unique_together = ["x", "y", "hero"]

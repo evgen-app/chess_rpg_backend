@@ -234,6 +234,10 @@ class RoomConsumer(BaseConsumer):
             # Join room group
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
+            # load and send board
+            await self.load_board()
+            await self.send_board()
+
     @sync_to_async
     def get_state(self):
         state = self.scope["player_in_room"].get_state()
@@ -250,7 +254,7 @@ class RoomConsumer(BaseConsumer):
         if not room:
             return False
 
-        self.scope["room"] = room
+        self.scope["room"] = room.first()
 
         # check if player can be in a room
         p_ids = [x.player.id for x in room.first().players.all()]
@@ -264,6 +268,7 @@ class RoomConsumer(BaseConsumer):
         self.scope["first"] = player.first
         self.scope["score"] = player.score
         self.scope["deck"] = player.deck.id
+        self.scope["state"] = room.first().states.last().round
 
         p_ids.remove(player.player.id)
         opponent = PlayerInRoom.objects.get(player_id=p_ids[0])
@@ -332,14 +337,15 @@ class RoomConsumer(BaseConsumer):
         return False
 
     async def perform_move(self, data):
-        await move_handler(
+        if await move_handler(
             data["px"],
             data["py"],
             data["x"],
             data["y"],
             self.room_name,
             self.scope["player_in_room"],
-        )
+        ):
+            await self.send_board()
         if self.scope["opponent_channel"] and self.scope["opponent_online"]:
             await self.channel_layer.send(
                 self.scope["opponent_channel"],
@@ -353,6 +359,33 @@ class RoomConsumer(BaseConsumer):
             )
             return True
         return False
+
+    @sync_to_async
+    def load_board(self):
+        # loads bord from db to scope
+        room = self.scope["room"]
+        board = [
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+        ]
+        for el in room.heroes.all():
+            board[el.y - 1][el.x - 1] = [el.hero.type, el.health]
+
+        self.scope["board"] = board
+
+    async def send_board(self):
+        # sends board to client
+        await self.send_message(
+            "INFO",
+            message=f"game's board for round {self.scope['state']}",
+            board=self.scope["board"],
+        )
 
     # info type group message handler
     async def info(self, event):

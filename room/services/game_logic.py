@@ -101,4 +101,10 @@ def move_handler(
 
     h_t = hero.hero.type
 
+    if _validate_hero_movement(h_t, prev_x, prev_y, x, y, room, first=player.first):
+        hero.x = x
+        hero.y = y
+        hero.save(update_fields=["x", "y"])
+        return True
+
     _print_board(room)  # TODO: Remove in production
