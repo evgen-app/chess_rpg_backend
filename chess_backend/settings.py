@@ -6,8 +6,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-%_8sy196w4hzo9^cp9(@r=i+amh47r4mxfhq_(ok&=c(@%bhmk"
-TOKEN_EXP = 2678400  # 31 day
 DEBUG = True
+if DEBUG:
+    TOKEN_EXP = 31536000  # 1 year
+    AUTH_EXP = 31536000  # 1 year
+else:
+    TOKEN_EXP = 2678400  # 1 month
+    AUTH_EXP = 3600  # 1 hour
 
 ALLOWED_HOSTS = []
 
@@ -28,21 +33,18 @@ INSTALLED_APPS = [
     "room",
 ]
 
-if DEBUG:
-    INSTALLED_APPS.append("drf_yasg")
-
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
@@ -122,3 +124,9 @@ LOGGING = {
         },
     },
 }
+
+# Celery Configuration Options
+CELERY_TIMEZONE = "Europe/Moscow"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60
+CELERY_BROKER_URL = 'redis://localhost:6379/0'

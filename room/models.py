@@ -1,7 +1,8 @@
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 # Create your models here.
-from game.models import Player, Deck
+from game.models import Player, Deck, Hero
 
 
 class PlayerInQueue(models.Model):
@@ -41,10 +42,40 @@ class PlayerInRoom(models.Model):
 
 
 class GameState(models.Model):
-    room = models.ForeignKey(Room, on_delete=models.CASCADE)
+    room = models.ForeignKey(Room, related_name="states", on_delete=models.CASCADE)
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
     round = models.IntegerField(blank=False)
     message = models.CharField(max_length=100, blank=False)
 
     class Meta:
         unique_together = ["room", "player", "round"]
+
+
+class HeroInGame(models.Model):
+    hero = models.ForeignKey(Hero, on_delete=models.CASCADE)
+    player = models.ForeignKey(PlayerInRoom, on_delete=models.CASCADE)
+    room = models.ForeignKey(Room, related_name="heroes", on_delete=models.CASCADE)
+
+    # state on board
+    x = models.IntegerField(
+        blank=False, validators=[MinValueValidator(1), MaxValueValidator(8)]
+    )
+    y = models.IntegerField(
+        blank=False, validators=[MinValueValidator(1), MaxValueValidator(8)]
+    )
+    health = models.IntegerField(blank=False)
+    dead = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.hero.type} in room {self.room.slug}"
+
+    def save(
+        self, force_insert=False, force_update=False, using=None, update_fields=None
+    ):
+        if not self.health and not self.dead:
+            self.health = self.hero.health
+
+        super().save(force_insert, force_update, using, update_fields)
+
+    class Meta:
+        unique_together = ["x", "y", "hero"]

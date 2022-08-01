@@ -22,9 +22,7 @@ class GetHeroSerializer(serializers.ModelSerializer):
         fields = (
             "added",
             "type",
-            "idle_img",
-            "attack_img",
-            "die_img",
+            "model",
             "health",
             "attack",
             "speed",
@@ -37,13 +35,19 @@ class ListHeroSerializer(serializers.ModelSerializer):
         fields = (
             "uuid",
             "type",
-            "idle_img",
-            "attack_img",
-            "die_img",
+            "model",
             "health",
             "attack",
             "speed",
         )
+
+
+class ListHeroInDeckSerializer(serializers.ModelSerializer):
+    hero = ListHeroSerializer()
+
+    class Meta:
+        model = HeroInDeck
+        fields = ("hero", "x", "y")
 
 
 class CreatePlayerSerializer(serializers.ModelSerializer):
@@ -106,7 +110,7 @@ class GetPlayerSerializer(serializers.ModelSerializer):
 
 class GetDeckSerializer(serializers.ModelSerializer):
     player = GetPlayerSerializer()
-    heroes = ListHeroSerializer(many=True)
+    heroes = ListHeroInDeckSerializer(many=True)
 
     class Meta:
         model = Deck

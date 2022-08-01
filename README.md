@@ -15,7 +15,12 @@ $ python3 manage.py loaddata media/dump_data/hero_model_fixture.json
 $ docker run -p 6379:6379 -d redis:5
 ```
 
-### run
+### dev run
+```shell
+$ python3 manage.py runserver 0.0.0.0:8000
+```
+
+### prod run
 ```shell
 $ daphne -b 0.0.0.0 -p 8000 chess_backend.asgi:application             
 ```
