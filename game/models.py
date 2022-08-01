@@ -9,14 +9,15 @@ from django.core.validators import (
 )
 from django.db import models
 
+from chess_backend import settings
 from common.generators import generate_charset
 from game.services.jwt import sign_jwt
 
 
 class HeroTypes(models.TextChoices):
-    wizard = "WIZARD", "wizard"
     archer = "ARCHER", "archer"
     warrior = "WARRIOR", "warrior"
+    wizard = "WIZARD", "wizard"
     king = "KING", "king"
 
 
@@ -32,32 +33,6 @@ class Player(models.Model):
     name = models.CharField(max_length=100, blank=True)
     created = models.DateTimeField(auto_now_add=True)
 
-    def save(
-        self, force_insert=False, force_update=False, using=None, update_fields=None
-    ):
-        """saves user and creates deck for him with 16 heroes"""
-        super(Player, self).save()
-        PlayerAuthSession.objects.create(player=self)
-        deck = Deck.objects.create(player=self)
-        types = (
-            ["KING"]
-            + ["ARCHER" for _ in range(4)]
-            + ["WARRIOR" for _ in range(6)]
-            + ["WIZARD" for _ in range(2)]
-            + [random.choice(HeroTypes.choices[:3])[0] for _ in range(3)]
-        )
-        for t in types:
-            hero = Hero()
-            hero.player = self
-            hero.type = t
-
-            hero.health = random.randint(0, 10)
-            hero.attack = random.randint(0, 10)
-            hero.speed = random.randint(0, 10)
-
-            hero.save()
-            HeroInDeck.objects.create(deck=deck, hero=hero)
-
     def get_last_deck(self):
         return Deck.objects.filter(player=self).last()
 
@@ -65,10 +40,13 @@ class Player(models.Model):
         return PlayerAuthSession.objects.get(player=self).jit
 
     def get_refresh_token(self):
-        return sign_jwt({"jit": self.get_auth_session(), "type": "refresh"})
+        return sign_jwt(
+            {"jit": self.get_auth_session(), "type": "refresh"},
+            t_life=settings.TOKEN_EXP,
+        )
 
     def get_access_token(self):
-        return sign_jwt({"id": self.id, "type": "access"}, t_life=3600)
+        return sign_jwt({"id": self.id, "type": "access"}, t_life=settings.AUTH_EXP)
 
     def __str__(self):
         return self.name
@@ -97,7 +75,7 @@ class Hero(models.Model):
     added = models.DateTimeField(auto_now_add=True)
 
     type = models.CharField(blank=False, choices=HeroTypes.choices, max_length=7)
-    model = models.ForeignKey("HeroModelSet", on_delete=models.CASCADE)
+    model_f = models.ForeignKey("HeroModelSet", on_delete=models.CASCADE)
     health = models.IntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(10)], blank=False
     )
@@ -108,14 +86,8 @@ class Hero(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(10)], blank=False
     )
 
-    def idle_img(self):
-        return self.idle_img_f.image.url
-
-    def attack_img(self):
-        return self.attack_img_f.image.url
-
-    def die_img(self):
-        return self.die_img_f.image.url
+    def model(self):
+        return self.model_f.model.url
 
     def __str__(self):
         return f"{self.type} {self.player.name}"
@@ -123,16 +95,8 @@ class Hero(models.Model):
     def save(
         self, force_insert=False, force_update=False, using=None, update_fields=None
     ):
-        self.idle_img_f = random.choice(
-            [x for x in HeroModelSet.objects.filter(hero_type=self.type)]
-        )
-        self.attack_img_f = random.choice(
-            [x for x in HeroModelSet.objects.filter(hero_type=self.type)]
-        )
-        self.die_img_f = random.choice(
-            [x for x in HeroModelSet.objects.filter(hero_type=self.type)]
-        )
-        super(Hero, self).save()
+        self.model_f = random.choice(HeroModelSet.objects.filter(hero_type=self.type))
+        super(Hero, self).save(force_insert, force_update, using, update_fields)
 
     class Meta:
         indexes = [models.Index(fields=["uuid"])]
@@ -145,7 +109,7 @@ class Hero(models.Model):
 
 class HeroModelSet(models.Model):
     hero_type = models.CharField(blank=False, choices=HeroTypes.choices, max_length=7)
-    model = models.ImageField(upload_to="uploads/")
+    model = models.FileField(upload_to="uploads/")
 
     def __str__(self):
         return f"{self.hero_type} model file"
@@ -163,14 +127,15 @@ class Deck(models.Model):
         return f"{self.player.name}'s deck"
 
     def get_heroes(self):
-        return [x.hero for x in HeroInDeck.objects.filter(deck=self)]
+        return HeroInDeck.objects.filter(deck=self)
 
     def heroes(self):
-        # added for better DRF view
         return self.get_heroes()
 
     def score(self):
-        return sum([x.attack + x.health + x.speed for x in self.get_heroes()])
+        return sum(
+            [x.hero.attack + x.hero.health + x.hero.speed for x in self.get_heroes()]
+        )
 
     class Meta:
         db_table = "deck"
@@ -191,11 +156,19 @@ class HeroInDeck(models.Model):
         related_name="hero_in_deck",
         related_query_name="decks",
     )
+    x = models.IntegerField(
+        blank=False, validators=[MinValueValidator(1), MaxValueValidator(8)]
+    )
+    y = models.IntegerField(
+        blank=False, validators=[MinValueValidator(1), MaxValueValidator(2)]
+    )
 
     class Meta:
         db_table = "hero_in_deck"
         verbose_name = "Hero in deck"
         verbose_name_plural = "Heroes in decks"
+        ordering = ["y", "x"]
+        unique_together = ["hero", "x", "y"]
 
 
 class PlayerAuthSession(models.Model):

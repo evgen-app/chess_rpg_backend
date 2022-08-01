@@ -1,17 +1,29 @@
 import json
+import os
+import django
 
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
-from channels.layers import get_channel_layer
+
+from room.services.game_logic import move_handler
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "chess_backend.settings")
+django.setup()
 
 from game.models import Deck
 from room.models import PlayerInQueue, Room, PlayerInRoom, GameState
 from room.services.room_create import create_room
 
-channel_layer = get_channel_layer()
+
+class BaseConsumer(AsyncWebsocketConsumer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(args, kwargs)
+
+    async def send_message(self, message_type: str, **data):
+        await self.send(text_data=json.dumps({"type": message_type, **data}))
 
 
-class QueueConsumer(AsyncWebsocketConsumer):
+class QueueConsumer(BaseConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(args, kwargs)
         self.room_group_name = None
@@ -21,6 +33,14 @@ class QueueConsumer(AsyncWebsocketConsumer):
 
         await self.accept()
         await self.check_origin()
+
+        if await self.check_user_already_in_room():
+            await self.send_message(
+                "INFO",
+                message=f"user already in room {self.scope['room_id']}",
+                room=self.scope["room"],
+            )
+            await self.close()
 
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
@@ -35,27 +55,17 @@ class QueueConsumer(AsyncWebsocketConsumer):
         try:
             data = json.loads(text_data)
         except ValueError:
-            await self.send(
-                text_data=json.dumps(
-                    {"type": "ERROR", "message": "data is not JSON serializable"}
-                )
-            )
+            await self.send_message("ERROR", message="data is not JSON serializable")
 
         if data:
             # TODO move to external function/class
             if "type" not in data:
-                await self.send(
-                    text_data=json.dumps(
-                        {"type": "ERROR", "message": "incorrect data typing"}
-                    )
-                )
+                await self.send_message("ERROR", message="incorrect data typing")
             else:
                 if data["type"] == "connect":
                     if "deck_id" not in data:
-                        await self.send(
-                            text_data=json.dumps(
-                                {"type": "ERROR", "message": "deck id is not provided"}
-                            )
+                        await self.send_message(
+                            "ERROR", message="deck id is not provided"
                         )
                     else:
                         deck = None
@@ -64,32 +74,22 @@ class QueueConsumer(AsyncWebsocketConsumer):
                             deck_id = int(data["deck_id"])
                             deck = await self.check_user_deck(deck_id)
                         except ValueError:
-                            await self.send(
-                                text_data=json.dumps(
-                                    {"type": "ERROR", "message": "deck id is incorrect"}
-                                )
+                            await self.send_message(
+                                "ERROR", message="deck id is incorrect"
                             )
+
                         if deck:
                             # add to que, start finding players
                             await self.queue_connector(deck)
-                            await self.send(
-                                text_data=json.dumps(
-                                    {
-                                        "type": "INFO",
-                                        "message": f"added to queue deck with score {self.scope['score']}",
-                                    }
-                                )
+                            await self.send_message(
+                                "INFO",
+                                message=f"added to queue deck with score {self.scope['score']}",
                             )
                             opponent = await self.find_user_by_score()
 
                             if not opponent:
-                                await self.send(
-                                    text_data=json.dumps(
-                                        {
-                                            "type": "INFO",
-                                            "message": "no user found, awaiting in queue",
-                                        }
-                                    )
+                                await self.send_message(
+                                    "INFO", message="no user found, awaiting in queue"
                                 )
                             else:
                                 # add to group and send message that opponent found to players
@@ -111,30 +111,33 @@ class QueueConsumer(AsyncWebsocketConsumer):
                                     },
                                 )
 
-                                await self.send(
-                                    text_data=json.dumps(
-                                        {
-                                            "type": "INFO",
-                                            "message": f"user found, with score {opponent[1]}",
-                                            "room": room,
-                                        }
-                                    )
+                                await self.send_message(
+                                    "INFO",
+                                    message=f"user found, with score {opponent[1]}",
+                                    room=room,
                                 )
                         else:
-                            await self.send(
-                                text_data=json.dumps(
-                                    {
-                                        "type": "ERROR",
-                                        "message": "such deck doesn't exist",
-                                    }
-                                )
+                            await self.send_message(
+                                "ERROR", message="such deck doesn't exist"
                             )
 
     @sync_to_async
     def delete_user_in_queue(self):
         try:
-            PlayerInQueue.objects.get(player_id=self.scope["player"]).delete()
+            PlayerInQueue.objects.get(player_id=self.scope["player"])
         except PlayerInQueue.DoesNotExist:
+            return False
+
+    @sync_to_async
+    def check_user_already_in_room(self):
+        try:
+            p = PlayerInRoom.objects.get(player_id=self.scope["player"])
+
+            self.scope["room"] = p.room.slug
+            self.scope["room_id"] = p.room.id
+
+            return True
+        except PlayerInRoom.DoesNotExist:
             return False
 
     @sync_to_async
@@ -178,24 +181,20 @@ class QueueConsumer(AsyncWebsocketConsumer):
         self.scope["score"] = queue.score
 
     async def info(self, event):
-        message = event["message"]
-        msg = {"type": "INFO", "message": message}
         if "room" in event:
-            msg["room"] = event["room"]
-
-        await self.send(text_data=json.dumps(msg))
+            await self.send_message(
+                "INFO", message=event["message"], room=event["room"]
+            )
+        else:
+            await self.send_message("INFO", message=event["message"])
 
     async def check_origin(self):
         if not self.scope["player"]:
-            await self.send(
-                text_data=json.dumps(
-                    {"type": "ERROR", "message": "token is incorrect or expired"}
-                )
-            )
+            await self.send_message("ERROR", message="token is incorrect or expired")
             await self.close()
 
 
-class RoomConsumer(AsyncWebsocketConsumer):
+class RoomConsumer(BaseConsumer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.room_group_name = None
@@ -210,18 +209,14 @@ class RoomConsumer(AsyncWebsocketConsumer):
         else:
             message, round = await self.get_state()
 
-            await self.send(
-                json.dumps(
-                    {
-                        "type": "INFO",
-                        "opponent_score": self.scope["opponent_score"],
-                        "opponent_deck": self.scope["opponent_deck"],
-                        "opponent_online": self.scope["opponent_online"],
-                        "first": self.scope["first"],
-                        "state": message,
-                        "round": round,
-                    },
-                )
+            await self.send_message(
+                "INFO",
+                opponent_score=self.scope["opponent_score"],
+                opponent_deck=self.scope["opponent_deck"],
+                opponent_online=self.scope["opponent_online"],
+                first=self.scope["first"],
+                state=message,
+                round=round,
             )
             if "opponent_channel" in self.scope and self.scope["opponent_channel"]:
                 await self.channel_layer.send(
@@ -239,6 +234,10 @@ class RoomConsumer(AsyncWebsocketConsumer):
             # Join room group
             await self.channel_layer.group_add(self.room_group_name, self.channel_name)
 
+            # load and send board
+            await self.load_board()
+            await self.send_board()
+
     @sync_to_async
     def get_state(self):
         state = self.scope["player_in_room"].get_state()
@@ -255,7 +254,7 @@ class RoomConsumer(AsyncWebsocketConsumer):
         if not room:
             return False
 
-        self.scope["room"] = room
+        self.scope["room"] = room.first()
 
         # check if player can be in a room
         p_ids = [x.player.id for x in room.first().players.all()]
@@ -269,6 +268,7 @@ class RoomConsumer(AsyncWebsocketConsumer):
         self.scope["first"] = player.first
         self.scope["score"] = player.score
         self.scope["deck"] = player.deck.id
+        self.scope["state"] = room.first().states.last().round
 
         p_ids.remove(player.player.id)
         opponent = PlayerInRoom.objects.get(player_id=p_ids[0])
@@ -310,20 +310,19 @@ class RoomConsumer(AsyncWebsocketConsumer):
         try:
             data = json.loads(text_data)
         except ValueError:
-            await self.send(
-                text_data=json.dumps(
-                    {"type": "ERROR", "message": "data is not JSON serializable"}
-                )
-            )
+            await self.send_message("ERROR", message="data is not JSON serializable")
 
         if data:
-            if data["type"] == "start":
+            if "type" not in data:
+                await self.send_message("ERROR", message="incorrect data typing")
+            elif data["type"] == "start":
                 if not await self.start(data):
-                    await self.send(
-                        text_data=json.dumps(
-                            {"type": "ERROR", "message": "opponent is offline"}
-                        )
-                    )
+                    await self.send_message("ERROR", message="opponent is offline")
+            elif data["type"] == "move":
+                if all(x in data for x in ["x", "y", "px", "py"]):
+                    await self.perform_move(data)
+            else:
+                await self.send_message("ERROR", message="incorrect data typing")
 
     async def start(self, data):
         if self.scope["opponent_channel"] and self.scope["opponent_online"]:
@@ -336,6 +335,57 @@ class RoomConsumer(AsyncWebsocketConsumer):
             )
             return True
         return False
+
+    async def perform_move(self, data):
+        if await move_handler(
+            data["px"],
+            data["py"],
+            data["x"],
+            data["y"],
+            self.room_name,
+            self.scope["player_in_room"],
+        ):
+            await self.send_board()
+        if self.scope["opponent_channel"] and self.scope["opponent_online"]:
+            await self.channel_layer.send(
+                self.scope["opponent_channel"],
+                {
+                    "type": "move",
+                    "x": data["x"],
+                    "y": data["y"],
+                    "px": data["px"],
+                    "py": data["py"],
+                },
+            )
+            return True
+        return False
+
+    @sync_to_async
+    def load_board(self):
+        # loads bord from db to scope
+        room = self.scope["room"]
+        board = [
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+            [None, None, None, None, None, None, None, None],
+        ]
+        for el in room.heroes.all():
+            board[el.y - 1][el.x - 1] = [el.hero.type, el.health]
+
+        self.scope["board"] = board
+
+    async def send_board(self):
+        # sends board to client
+        await self.send_message(
+            "INFO",
+            message=f"game's board for round {self.scope['state']}",
+            board=self.scope["board"],
+        )
 
     # info type group message handler
     async def info(self, event):
@@ -362,13 +412,6 @@ class RoomConsumer(AsyncWebsocketConsumer):
 
         await self.send(text_data=json.dumps(msg))
 
-    # Receive message from room group
-    async def chat_message(self, event):
-        message = event["message"]
-
-        # Send message to WebSocket
-        await self.send(text_data=json.dumps({"lot": message}))
-
     async def channel(self, event):
         channel = event["channel"]
         self.scope["opponent_channel"] = channel
@@ -386,6 +429,19 @@ class RoomConsumer(AsyncWebsocketConsumer):
             )
         )
         self.scope["opponent_online"] = status
+
+    async def move(self, event):
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "MOVE",
+                    "x": event["x"],
+                    "y": event["y"],
+                    "px": event["px"],
+                    "py": event["py"],
+                }
+            )
+        )
 
     async def check_origin(self):
         if not self.scope["player"]:
