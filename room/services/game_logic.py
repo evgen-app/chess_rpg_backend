@@ -62,24 +62,24 @@ def _print_board(room: Room):
                 hero = HeroInGame.objects.get(x=x, y=y, room=room)
                 if hero.hero.type == "KING":
                     if hero.player.first:
-                        print(colored("♔", 'green', attrs=['bold']), end="")
+                        print(colored("♔", "green", attrs=["bold"]), end="")
                     else:
-                        print(colored("♚", 'red', attrs=['bold']), end="")
+                        print(colored("♚", "red", attrs=["bold"]), end="")
                 elif hero.hero.type == "WIZARD":
                     if hero.player.first:
-                        print(colored("♕", 'green', attrs=['bold']), end="")
+                        print(colored("♕", "green", attrs=["bold"]), end="")
                     else:
-                        print(colored("♛", 'red', attrs=['bold']), end="")
+                        print(colored("♛", "red", attrs=["bold"]), end="")
                 elif hero.hero.type == "ARCHER":
                     if hero.player.first:
-                        print(colored("♗", 'green', attrs=['bold']), end="")
+                        print(colored("♗", "green", attrs=["bold"]), end="")
                     else:
-                        print(colored("♝", 'red', attrs=['bold']), end="")
+                        print(colored("♝", "red", attrs=["bold"]), end="")
                 else:
                     if hero.player.first:
-                        print(colored("♙", 'green', attrs=['bold']), end="")
+                        print(colored("♙", "green", attrs=["bold"]), end="")
                     else:
-                        print(colored("♟", 'red', attrs=['bold']), end="")
+                        print(colored("♟", "red", attrs=["bold"]), end="")
             except HeroInGame.DoesNotExist:
                 print("*", end="")
         print()
@@ -88,23 +88,30 @@ def _print_board(room: Room):
 @sync_to_async
 def move_handler(
     prev_x: int, prev_y: int, x: int, y: int, room_slug: str, player: PlayerInRoom
-):
+) -> (bool, str):
     room = Room.objects.get(slug=room_slug)
     _print_board(room)  # TODO: Remove in production
     try:
         hero = HeroInGame.objects.get(x=prev_x, y=prev_y, room=room, player=player)
     except HeroInGame.DoesNotExist:
-        return False
+        return False, "There is no hero"
 
     if x == prev_x and y == prev_y:
-        return False
+        return False, "Trying to move on same spot"
 
     h_t = hero.hero.type
 
-    if _validate_hero_movement(h_t, prev_x, prev_y, x, y, room, first=player.first):
-        hero.x = x
-        hero.y = y
-        hero.save(update_fields=["x", "y"])
-        return True
+    if h := HeroInGame.objects.filter(x=x, y=y, room=room, player=player):
+        if h.first().player != player:
+            # TODO: rpg encounter logic
+            return False, "Not implemented"
+        else:
+            return False, "Can't perform move on own figure"
+    else:
+        if _validate_hero_movement(h_t, prev_x, prev_y, x, y, room, first=player.first):
+            hero.x = x
+            hero.y = y
+            hero.save(update_fields=["x", "y"])
+            return True, "ok"
+        return False, "Such move can't be performed"
 
-    _print_board(room)  # TODO: Remove in production

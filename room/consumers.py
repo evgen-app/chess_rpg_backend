@@ -337,28 +337,35 @@ class RoomConsumer(BaseConsumer):
         return False
 
     async def perform_move(self, data):
-        if await move_handler(
+        b, message = await move_handler(
             data["px"],
             data["py"],
             data["x"],
             data["y"],
             self.room_name,
             self.scope["player_in_room"],
-        ):
-            await self.send_board()
-        if self.scope["opponent_channel"] and self.scope["opponent_online"]:
-            await self.channel_layer.send(
-                self.scope["opponent_channel"],
-                {
-                    "type": "move",
-                    "x": data["x"],
-                    "y": data["y"],
-                    "px": data["px"],
-                    "py": data["py"],
-                },
+        )
+
+        if b:
+            await self.update_board(
+                data["px"],
+                data["py"],
+                data["x"],
+                data["y"],
             )
-            return True
-        return False
+            if self.scope["opponent_channel"] and self.scope["opponent_online"]:
+                await self.channel_layer.send(
+                    self.scope["opponent_channel"],
+                    {
+                        "type": "move",
+                        "x": data["x"],
+                        "y": data["y"],
+                        "px": data["px"],
+                        "py": data["py"],
+                    },
+                )
+        else:
+            await self.send_message("ERROR", message=message)
 
     @sync_to_async
     def load_board(self):
@@ -378,6 +385,10 @@ class RoomConsumer(BaseConsumer):
             board[el.y - 1][el.x - 1] = [el.hero.type, el.health]
 
         self.scope["board"] = board
+
+    async def update_board(self, px, py, x, y):
+        self.scope["board"][x][y] = self.scope["board"][px][py]
+        self.scope["board"][px][py] = None
 
     async def send_board(self):
         # sends board to client
@@ -431,6 +442,12 @@ class RoomConsumer(BaseConsumer):
         self.scope["opponent_online"] = status
 
     async def move(self, event):
+        await self.update_board(
+            event["px"],
+            event["py"],
+            event["x"],
+            event["y"],
+        )
         await self.send(
             text_data=json.dumps(
                 {
